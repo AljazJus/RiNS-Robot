@@ -352,6 +352,8 @@ class FindFace:
             if self.check_point_rad(p[0],p[1]):
                 tmp.append(p)
 
+        rospy.loginfo("FACE ORIENTATION")
+        rospy.loginfo(tmp)
         #calculate the distance from the robot to the point  
         for i in range(len(tmp)):
             distance=math.sqrt((tmp[i][0] - curPos[0])**2 + (tmp[i][1] - curPos[1])**2)
@@ -509,6 +511,9 @@ class FindFace:
         
         # check if point is out of bounds
         if x_map < 0 or x_map >= self.cv_map.shape[1] or y_map < 0 or y_map >= self.cv_map.shape[0]:
+            return False
+        
+        if self.cv_map[y_map, x_map]==-1:
             return False
 
         # find closest point with a value of 100 within radius
