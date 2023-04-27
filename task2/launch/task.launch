@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+
+    <rosparam param="leaf_size">0.02</rosparam>
+
+    <node pkg="task2" type="cylinder_segmentation_task2" name="cylinder_segmentation" output="screen">
+        <remap from="input" to="/camera/depth/points"/>
+    </node>
+    <node pkg="task2" type="detect_rings.py" name="detect_rings" output="screen"/>
+</launch>
