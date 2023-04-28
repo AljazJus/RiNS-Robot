@@ -75,3 +75,5 @@ catkin_package(
 )
 
 add_executable (cylinder_segmentation_task2 src/cylinder_segmentation.cpp)
+
+catkin_install_python(PROGRAMS scripts/detect_rings.py scripts/park_control.py DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})

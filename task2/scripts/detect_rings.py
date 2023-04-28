@@ -40,6 +40,7 @@ class The_Ring:
         
         self.min_limit = 0.2
         self.rings = []
+        self.green_ring = None
         self.window_dim = 3
         self.epsilon = 0.01
         self.colors = ( (np.array([0.22023449, 0.95504346, 0.19155043]), 'green'),
@@ -129,6 +130,38 @@ class The_Ring:
         
 
         self.markers_pub.publish(marker)
+
+        rospy.loginfo("----------------------------------")
+        rospy.loginfo("Current length of rings: %d", len(self.rings))
+        rospy.loginfo("----------------------------------")
+        rospy.loginfo("The current rings are: ")
+        for r in self.rings:
+            rospy.loginfo(r[1])
+        rospy.sleep(5)
+        
+        if len(self.rings)>=1:
+            rospy.loginfo("Fetch the green ring")
+            if self.green_ring is None:
+                for r in self.rings:
+                    if r[1] == 'green':
+                        self.green_ring = r
+                        rospy.loginfo("----------------------------------")
+                        rospy.loginfo("GOT THE GREEN RING !!!!!!!!!!!!!!!")
+                        rospy.loginfo("----------------------------------")
+                        rospy.loginfo(self.green_ring)
+                        rospy.sleep(5)
+                        break
+                
+        if self.green_ring is not None:
+            rospy.loginfo("------------------------------------------------------")
+            rospy.loginfo("Location of green is: %f %f %f", self.green_ring[0][0], self.green_ring[0][1] , self.green_ring[0][2])
+            rospy.loginfo("------------------------------------------------------")
+            
+            curPos=self.get_current_pos()
+            
+            self.ring_publisher.publish(self.green_ring)
+            
+            rospy.sleep(5)
 
 
     def image_callback(self,data):

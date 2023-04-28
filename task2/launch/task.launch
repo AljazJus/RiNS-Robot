@@ -7,4 +7,5 @@
         <remap from="input" to="/camera/depth/points"/>
     </node>
     <node pkg="task2" type="detect_rings.py" name="detect_rings" output="screen"/>
+    <!--<node pkg="tasks" type="findRings.py" name="findRings" output="screen"/>!-->
 </launch>

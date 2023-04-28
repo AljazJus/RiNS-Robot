@@ -499,6 +499,7 @@ class FindFace:
         Check if a point is reachable to the robot 
         If there are obstacles near the point it will return false
         """
+        
         if (math.isnan(x) or math.isnan(y)):
             return False
 
