@@ -22,7 +22,10 @@
 #include <nav_msgs/Odometry.h>
 #include <cmath>
 #include <vector>
+
 #include "task2/Cylinder.h"
+
+
 
 ros::Publisher pubx;
 ros::Publisher puby;
@@ -88,14 +91,14 @@ cloud_cb (const pcl::PCLPointCloud2ConstPtr& cloud_blob)
   counter++;
   if(counter == 30) {
     counter = 0;
-    std::cout << "cylinder print out" << std::endl;
+    // std::cout << "cylinder print out" << std::endl;
     for(int i = 0; i < cylinders.size(); i++) {
       task2::Cylinder current = cylinders[i];
-      std::cout << i << std::endl;
-      std::cout << "Position: x=" << current.x << ", y=" << current.y << std::endl;
-      std::cout << "Conviction: " << current.conviction << std::endl;
-      std::cout << "Color: " << current.color << std::endl;
-      std::cout << "---------" << std::endl;
+      // std::cout << i << std::endl;
+      // std::cout << "Position: x=" << current.x << ", y=" << current.y << std::endl;
+      // std::cout << "Conviction: " << current.conviction << std::endl;
+      // std::cout << "Color: " << current.color << std::endl;
+      // std::cout << "---------" << std::endl;
     }
   }
   ros::Time time_rec, time_test;
@@ -361,7 +364,7 @@ cloud_cb (const pcl::PCLPointCloud2ConstPtr& cloud_blob)
         cylinders.push_back(newCylinder);
 
         cylinders_pub.publish(marker);
-        std::cout << "New cylinder" << std::endl;
+        std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!New cylinder" << std::endl;
       }
 
 

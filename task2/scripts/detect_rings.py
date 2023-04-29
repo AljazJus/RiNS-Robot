@@ -15,6 +15,8 @@ import math
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Quaternion
 
+from task2.msg import Ring
+
 class The_Ring:
     def __init__(self):
         rospy.init_node('image_converter', anonymous=True)
@@ -34,6 +36,11 @@ class The_Ring:
 
         # Publiser for the visualization markers
         self.markers_pub = rospy.Publisher('rings', Marker, queue_size=100)
+
+        # Publisher for the ring pose
+        self.ring_pub = rospy.Publisher('ring_pose', Ring, queue_size=100)
+        
+        
         # Object we use for transforming between coordinate frames
         self.tf_buf = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buf)
@@ -60,7 +67,6 @@ class The_Ring:
         return self.colors[best_index][1]
     
     def get_pose(self,e,dist, marker_color, color_name):
-        print("dist:", dist)
         # Calculate the position of the detected ellipse
 
         k_f = 525 # kinect focal length in pixels
@@ -104,6 +110,18 @@ class The_Ring:
                 return
         
         self.rings.append((world_point, color_name))
+
+
+        # Publish the marker to main
+        rospy.loginfo("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!SENDIG MARKER-")
+
+        Ring_position = Ring()
+        Ring_position.x=world_point[0]
+        Ring_position.y=world_point[1]
+        Ring_position.z=world_point[2]
+        Ring_position.color=color_name
+        self.ring_pub.publish(Ring_position)
+
         # Create a Pose object with the same position
         pose = Pose()
         pose.position.x = world_point[0]
@@ -112,7 +130,6 @@ class The_Ring:
 
         pose.orientation = Quaternion(0.0, 0.0, 0.0, 1.0)
 
-        print(self.rings)
 
         # Create a marker used for visualization
         self.marker_num += 1
@@ -129,39 +146,41 @@ class The_Ring:
         marker.color = marker_color
         
 
+        
+
         self.markers_pub.publish(marker)
 
-        rospy.loginfo("----------------------------------")
-        rospy.loginfo("Current length of rings: %d", len(self.rings))
-        rospy.loginfo("----------------------------------")
-        rospy.loginfo("The current rings are: ")
-        for r in self.rings:
-            rospy.loginfo(r[1])
-        rospy.sleep(5)
+        # rospy.loginfo("----------------------------------")
+        # rospy.loginfo("Current length of rings: %d", len(self.rings))
+        # rospy.loginfo("----------------------------------")
+        # rospy.loginfo("The current rings are: ")
+        # for r in self.rings:
+        #     rospy.loginfo(r[1])
+        # rospy.sleep(5)
         
-        if len(self.rings)>=1:
-            rospy.loginfo("Fetch the green ring")
-            if self.green_ring is None:
-                for r in self.rings:
-                    if r[1] == 'green':
-                        self.green_ring = r
-                        rospy.loginfo("----------------------------------")
-                        rospy.loginfo("GOT THE GREEN RING !!!!!!!!!!!!!!!")
-                        rospy.loginfo("----------------------------------")
-                        rospy.loginfo(self.green_ring)
-                        rospy.sleep(5)
-                        break
+        # if len(self.rings)>=1:
+        #     rospy.loginfo("Fetch the green ring")
+        #     if self.green_ring is None:
+        #         for r in self.rings:
+        #             if r[1] == 'green':
+        #                 self.green_ring = r
+        #                 rospy.loginfo("----------------------------------")
+        #                 rospy.loginfo("GOT THE GREEN RING !!!!!!!!!!!!!!!")
+        #                 rospy.loginfo("----------------------------------")
+        #                 rospy.loginfo(self.green_ring)
+        #                 rospy.sleep(5)
+        #                 break
                 
-        if self.green_ring is not None:
-            rospy.loginfo("------------------------------------------------------")
-            rospy.loginfo("Location of green is: %f %f %f", self.green_ring[0][0], self.green_ring[0][1] , self.green_ring[0][2])
-            rospy.loginfo("------------------------------------------------------")
+        # if self.green_ring is not None:
+        #     rospy.loginfo("------------------------------------------------------")
+        #     rospy.loginfo("Location of green is: %f %f %f", self.green_ring[0][0], self.green_ring[0][1] , self.green_ring[0][2])
+        #     rospy.loginfo("------------------------------------------------------")
             
-            curPos=self.get_current_pos()
+        #     curPos=self.get_current_pos()
             
-            self.ring_publisher.publish(self.green_ring)
+        #     self.ring_publisher.publish(self.green_ring)
             
-            rospy.sleep(5)
+        #     rospy.sleep(5)
 
 
     def image_callback(self,data):
@@ -284,6 +303,7 @@ class The_Ring:
             c = np.mean(img_window_color_valid, axis=0) / 255
             print(c)
             color_name = self.nearest_neighbour(c)
+
             self.get_pose(e1, float(np.mean(img_window)), ColorRGBA(c[0], c[1], c[2], 1), color_name)
         
         """

@@ -21,9 +21,11 @@ find_package(catkin REQUIRED COMPONENTS
   roslib
   sensor_msgs
   std_msgs
+  rospy
   geometry_msgs
   tf2_ros
   tf2_geometry_msgs
+  message_generation
 )
 
 ## Add include directories
@@ -47,6 +49,7 @@ link_libraries(${Boost_LIBRARIES} ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 add_message_files(DIRECTORY msg
   FILES
   Cylinder.msg
+  Ring.msg
 )
 
 generate_messages(
@@ -65,6 +68,7 @@ catkin_package(
     pcl_conversions
     pcl_msgs
     roscpp
+    rospy
     sensor_msgs
     std_msgs
     message_runtime
@@ -76,4 +80,4 @@ catkin_package(
 
 add_executable (cylinder_segmentation_task2 src/cylinder_segmentation.cpp)
 
-catkin_install_python(PROGRAMS scripts/detect_rings.py scripts/park_control.py DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+catkin_install_python(PROGRAMS scripts/main.py scripts/detect_rings.py scripts/park_control.py DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
