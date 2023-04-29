@@ -55,6 +55,7 @@ class Main_task:
 
         #array of detected faces
         self.faces=[]
+        self.face_count=0
         
         #array of detected cylinders
         self.cylinders=[]
@@ -215,31 +216,54 @@ class Main_task:
         self.face_pub.publish(self.markerArray)
     
     def ring_handle(self,msg):
-        rospy.loginfo("!!!!!!!!!!!!!!!!!!!!!!!!!!!RING detected")
         
         x=msg.pose.position.x
         y=msg.pose.position.y
+        if(x is None or y is None):
+            return
         color=msg.color
         self.rings.append([(x,y),color])
         self.rings_markers.append(msg)
         self.marker_update()
 
     def cylinder_handle(self,msg):
-        rospy.loginfo("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Cylinder detected")
         
+        #rospy.loginfo(msg)
         x=msg.pose.position.x
         y=msg.pose.position.y
-        color=msg.color
-        self.cylinders.append([(x,y),color])
-        self.cylinders_markers.append(msg)
+
+        if(math.isnan(y) or math.isnan(x)):
+            rospy.loginfo(msg)
+            return
+        #check if the face is already in the list and has been added before
+        for i,cyl in enumerate(self.cylinders):
+            cx=cyl[0][0]
+            cy=cyl[0][1]
+            
+            #check if the new c  is close to the cyl in the list
+            if(abs(x-cx)<0.5 and abs(y-cy)<0.5):
+                rospy.loginfo("Edit a cylinder "+str(i)+"("+str(cx)+" , "+str(cy)+")")
+                #ajust the position of the cylinder
+                self.cylinders_markers[i].pose.position.x=(x*0.5+cx*0.5)
+                self.cylinders_markers[i].pose.position.y=(y*0.5+cy*0.5)
+                break
+        else:
+            color=msg.color
+            self.cylinders.append([(x,y),color])
+            self.cylinders_markers.append(msg)
+
         self.marker_update()
     
     def face_handle(self,msg):
         new_faces=self.face.face_detected(msg)
+
         if new_faces is None:
             return
-        if(len(new_faces)>len(self.faces)):
-            self.move_to_face(new_faces[len(new_faces)-1][3])
+        
+        if(len(new_faces)>self.face_count):
+            self.face_count=self.face_count+1
+            self.move_to_face(new_faces[-1][3])
+        
         self.faces=new_faces 
 
         self.marker_update()

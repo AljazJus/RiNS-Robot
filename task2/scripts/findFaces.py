@@ -106,7 +106,7 @@ class face_handle:
             #check if the face is already in the list and has been added before
             for face in self.faces:
                 #check if the face is close to the face in the list
-                if((face_x-face[1][0])<self.rad and (face_y-face[1][1])<self.rad):
+                if(abs(face_x-face[1][0])<self.rad and abs(face_y-face[1][1])<self.rad):
                     if( self.simila_angle(face[3],pred_faco)):
                         rospy.loginfo("Edit a face"+face[0])
                         face[2]=face[2]+1
