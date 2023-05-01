@@ -52,9 +52,6 @@ class face_handle:
 
         #subscribing to the face markers
         
-
-        #publisher for the face markers
-        self.face_pub = rospy.Publisher("Faces_found", MarkerArray, queue_size=5)
         
         #map data
         self.cv_map = None
@@ -256,5 +253,44 @@ class face_handle:
             return True
         else:
             return False
+        
+
+    def approche_position(self,mark):
+        """
+        This function calculates the position infront of the object
+        """
+
+        #todo: calculate the position infront of the object
+        ob_x,ob_y=mark
+        
+        #get the current position of the robot
+        curPos=self.get_current_pos()
+
+        #calculate the point in aorund of the face
+        tamp=[(ob_x-0.5,ob_y),(ob_x+0.5,ob_y),(ob_x,ob_y-0.5),(ob_x,ob_y+0.5)]
+        tmp=[]
+
+        #check if the point is reachable to the robot
+        for p in tamp:
+            if self.check_point_rad(p[0],p[1]):
+                tmp.append(p)
+        
+        #calculate the distance from the robot to the point  
+        for i in range(len(tmp)):
+            distance=math.sqrt((tmp[i][0] - curPos[0])**2 + (tmp[i][1] - curPos[1])**2)
+            a=tmp[i]
+            tmp[i]=[distance,a]
+
+        #sort the points by distance
+        tmp=sorted(tmp)
+        
+        if tmp==[]:
+            #if there is no point to go to
+            rospy.loginfo("NO POINTS TO GO TO!!!!!!!!!!!")
+            return
+        #choses the closest viable point
+        point=tmp[0][1]
+        
+        return point
 
         
