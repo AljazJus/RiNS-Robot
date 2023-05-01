@@ -15,7 +15,6 @@ import math
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Quaternion
 
-from task2.msg import Ring
 
 class The_Ring:
     def __init__(self):
@@ -31,21 +30,30 @@ class The_Ring:
         self.marker_num = 1
 
         # Subscribe to the image and/or depth topic
-        self.image_sub = rospy.Subscriber("/camera/rgb/image_raw", Image, self.image_callback)
+        self.image_sub = rospy.Subscriber("/camera/rgb/image_raw", Image, self.imageRGB_callback)
+        self.rgb_img = None
+        self.timestamp = None
+
         # self.depth_sub = rospy.Subscriber("/camera/depth_registered/image_raw", Image, self.depth_callback)
+
+        # self.odom_sub = rospy.Subscriber('/odom', Odometry, self.odom_callback)
+        # self.odom = None
+
+        self.img_sub = rospy.Subscriber('/camera/depth/image_raw', Image, self.imageDEPT_callback)
+        self.depth_img = None
+
+
+        self.in_process = False
 
         # Publiser for the visualization markers
         self.markers_pub = rospy.Publisher('rings', Marker, queue_size=100)
 
-        # Publisher for the ring pose
-        self.ring_pub = rospy.Publisher('ring_pose', Ring, queue_size=100)
-        
         
         # Object we use for transforming between coordinate frames
         self.tf_buf = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buf)
         
-        self.min_limit = 0.2
+        self.min_limit = 0.4
         self.rings = []
         self.green_ring = None
         self.window_dim = 3
@@ -96,33 +104,43 @@ class The_Ring:
         point_s.header.frame_id = "camera_rgb_optical_frame"
         point_s.header.stamp = rospy.Time(0)
 
-        # Get the point in the "map" coordinate system
-        point_world = self.tf_buf.transform(point_s, "map")
+        # !Get the point in the "map" coordinate system
+        point_world = self.tf_buf.transform(point_s, "map",timeout=rospy.Duration(0.20))
 
+        # Create a Pose object with the same position
         world_point = (point_world.point.x, point_world.point.y, point_world.point.z)
         if math.isnan(world_point[0]) or math.isnan(world_point[1] or math.isnan(world_point[2])):
             return
         
-        for r in self.rings:
+        # Check if the ring is already detected
+        for i,r in enumerate(self.rings):
             if  abs(world_point[0] - r[0][0]) < self.min_limit and \
                 abs(world_point[1] - r[0][1]) < self.min_limit and \
                 abs(world_point[2] - r[0][2]) < self.min_limit:
+
+                print("Ring already detected: "+str(i))
+                # TODO:ajuuust the position of the ring
+                
+                self.rings[i][2] += 1
+                if self.rings[i][2] == 5:
+                    #make sure that we have detected the ring 3 times
+                    self.publish_ring(i,point_world,marker_color)
+                    break
                 return
+        else:
+            #add new ring 
+            print("New ring detected!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            self.rings.append([world_point, color_name,1])
+
         
-        self.rings.append((world_point, color_name))
+
+    def publish_ring(self,i,point_world,marker_color):
+        # Publish the ring that we are sure about
+        print("Publishing ring: "+str(i))
+        world_point = self.rings[i][0]
+        color_name = self.rings[i][1]
 
 
-        # Publish the marker to main
-        rospy.loginfo("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!SENDIG MARKER-")
-
-        Ring_position = Ring()
-        Ring_position.x=world_point[0]
-        Ring_position.y=world_point[1]
-        Ring_position.z=world_point[2]
-        Ring_position.color=color_name
-        self.ring_pub.publish(Ring_position)
-
-        # Create a Pose object with the same position
         pose = Pose()
         pose.position.x = world_point[0]
         pose.position.y = world_point[1]
@@ -134,6 +152,7 @@ class The_Ring:
         # Create a marker used for visualization
         self.marker_num += 1
         marker = Marker()
+        marker.ns=color_name+":"+str(self.marker_num)
         marker.header.stamp = point_world.header.stamp
         marker.header.frame_id = point_world.header.frame_id
         marker.pose = pose
@@ -145,58 +164,50 @@ class The_Ring:
         marker.scale = Vector3(0.1, 0.1, 0.1)
         marker.color = marker_color
         
-
-        
-
+        # Publish the marker
         self.markers_pub.publish(marker)
+ 
+    def imageRGB_callback(self, msg):
+        #get the rgb data 
+        if self.in_process:
+            return
+        self.timestamp = msg.header.stamp
+        self.rgb_img = msg
 
-        # rospy.loginfo("----------------------------------")
-        # rospy.loginfo("Current length of rings: %d", len(self.rings))
-        # rospy.loginfo("----------------------------------")
-        # rospy.loginfo("The current rings are: ")
-        # for r in self.rings:
-        #     rospy.loginfo(r[1])
-        # rospy.sleep(5)
+
+    def imageDEPT_callback(self, msg):
+        #get the image data in the same timestamp
+        if self.in_process or msg.header.stamp is None:
+            return
         
-        # if len(self.rings)>=1:
-        #     rospy.loginfo("Fetch the green ring")
-        #     if self.green_ring is None:
-        #         for r in self.rings:
-        #             if r[1] == 'green':
-        #                 self.green_ring = r
-        #                 rospy.loginfo("----------------------------------")
-        #                 rospy.loginfo("GOT THE GREEN RING !!!!!!!!!!!!!!!")
-        #                 rospy.loginfo("----------------------------------")
-        #                 rospy.loginfo(self.green_ring)
-        #                 rospy.sleep(5)
-        #                 break
-                
-        # if self.green_ring is not None:
-        #     rospy.loginfo("------------------------------------------------------")
-        #     rospy.loginfo("Location of green is: %f %f %f", self.green_ring[0][0], self.green_ring[0][1] , self.green_ring[0][2])
-        #     rospy.loginfo("------------------------------------------------------")
-            
-        #     curPos=self.get_current_pos()
-            
-        #     self.ring_publisher.publish(self.green_ring)
-            
-        #     rospy.sleep(5)
+        if self.timestamp is not None and (msg.header.stamp - self.timestamp).to_sec() <= 0.2:
+            self.depth_img = msg
+            #check if the proces is alredy ruuning so it is not calld twice
+            if not self.in_process:
+                self.image_prices()
 
-
-    def image_callback(self,data):
-
-        odom = rospy.wait_for_message('/odom', Odometry)
-        x = odom.twist.twist.linear.x
-        y = odom.twist.twist.linear.y
-        z = odom.twist.twist.angular.z
-        if abs(x) > self.epsilon or abs(y) > self.epsilon or abs(z) > self.epsilon:
-            return 
+    
+    def image_prices(self):
         
+        # Check if the images are not None
+        if self.rgb_img is None or self.depth_img is None:
+            return
+        
+        # Set the flag proces to true
+        self.in_process = True
+
+        #Set the rgb imagedata
+        data=self.rgb_img
+
+        #Set the depth image data
+        depth_img = self.depth_img
+
+        # Convert the image to OpenCV format
         try:
             cv_image = self.bridge.imgmsg_to_cv2(data, "rgb8")
         except CvBridgeError as e:
             print(e)
-
+        
         # Set the dimensions of the image
         self.dims = cv_image.shape
 
@@ -223,13 +234,9 @@ class The_Ring:
 
         # Fit elipses to all extracted contours
         elps = []
-        #print("Elipses:")
         for cnt in contours:
-            #     print cnt
-            #     print cnt.shape
             if cnt.shape[0] >= 20:
                 ellipse = cv2.fitEllipse(cnt)
-                #rint(ellipse)
                 elps.append(ellipse)
 
 
@@ -245,12 +252,7 @@ class The_Ring:
                     candidates.append((e1,e2))
 
         #print("Processing is done! found", len(candidates), "candidates for rings")
-
-        try:
-            depth_img = rospy.wait_for_message('/camera/depth/image_raw', Image)
-        except Exception as e:
-            print(e)
-
+       
         # Extract the depth from the depth image
         for c in candidates:
 
@@ -277,6 +279,7 @@ class The_Ring:
             y_min = y1 if y1 > 0 else 0
             y_max = y2 if y2 < cv_image.shape[1] else cv_image.shape[1]
 
+            #
             depth_image = self.bridge.imgmsg_to_cv2(depth_img, "32FC1")
 
 
@@ -306,6 +309,11 @@ class The_Ring:
 
             self.get_pose(e1, float(np.mean(img_window)), ColorRGBA(c[0], c[1], c[2], 1), color_name)
         
+
+        self.odom = None
+        self.depth_img = None
+        self.timestamp = None
+        self.in_process = False
         """
         if len(candidates)>0:
                 cv2.imshow("Image window",cv_image)

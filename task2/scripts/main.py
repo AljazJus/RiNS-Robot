@@ -203,7 +203,7 @@ class Main_task:
 
         rospy.loginfo("////////////////////RINGS////////////////////////")
         for i,ring in enumerate(self.rings):
-            rospy.loginfo("Found:{} ({}, {}) seen ".format(i, ring[0][0], ring[0][1]))
+            rospy.loginfo("Found:{} ({}, {}) seen color {}".format(i, ring[0][0], ring[0][1],ring[1]))
         rospy.loginfo("////////////////////RINGS////////////////////////")
 
         rospy.loginfo("////////////////////cylinders////////////////////////")
@@ -216,12 +216,14 @@ class Main_task:
         self.face_pub.publish(self.markerArray)
     
     def ring_handle(self,msg):
-        
+        #TODO: read the correct color 
+
+        color=msg.ns.split(":")[0]
         x=msg.pose.position.x
         y=msg.pose.position.y
         if(x is None or y is None):
             return
-        color=msg.color
+        
         self.rings.append([(x,y),color])
         self.rings_markers.append(msg)
         self.marker_update()
@@ -347,48 +349,6 @@ class Main_task:
             self.move_status="Waiting"
             return True
            
-    def add_cylinder(self,point,color):
-        marker = Marker()
-        marker.header.frame_id = "map"
-        marker.type = marker.CYLINDER
-        marker.action = marker.ADD
-        marker.scale.x = 0.2
-        marker.scale.y = 0.1
-        marker.scale.z = 0.1
-        marker.color.a = 1.0
-        marker.color.r = 1.0
-        marker.color.g = 0.0
-        marker.color.b = 0.0
-        marker.color = color
-        marker.pose.orientation.w = 1.0
-        marker.pose.position.x = point[0]
-        marker.pose.position.y = point[1]
-        marker.pose.position.z = 0.0
-        self.markerArray.markers.append(marker)
-        marker.id = self.i
-        self.i=self.i+1
-
-    def add_sphear(self,point,color):
-        marker = Marker()
-        marker.header.frame_id = "map"
-        marker.type = marker.CYLINDER
-        marker.action = marker.ADD
-        marker.scale.x = 0.2
-        marker.scale.y = 0.1
-        marker.scale.z = 0.1
-        marker.color.a = 1.0
-        marker.color.r = 1.0
-        marker.color.g = 0.0
-        marker.color.b = 0.0
-        marker.color = color
-        marker.pose.orientation.w = 1.0
-        marker.pose.position.x = point[0]
-        marker.pose.position.y = point[1]
-        marker.pose.position.z = 0.0
-        self.markerArray.markers.append(marker)
-        marker.id = self.i
-        self.i=self.i+1
-
     def add_maeker(self,point,color,name="Tese"):
         """
         Add a marker to the marker array
