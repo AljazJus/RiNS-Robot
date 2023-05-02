@@ -14,6 +14,7 @@ from std_msgs.msg import ColorRGBA
 import math
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Quaternion
+from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 
 
 class The_Ring:
@@ -30,7 +31,7 @@ class The_Ring:
         self.marker_num = 1
 
         # Subscribe to the image and/or depth topic
-        self.image_sub = rospy.Subscriber("/camera/rgb/image_raw", Image, self.imageRGB_callback)
+        self.image_sub = rospy.Subscriber("/arm_camera/rgb/image_raw", Image, self.imageRGB_callback)
         self.rgb_img = None
         self.timestamp = None
 
@@ -39,7 +40,7 @@ class The_Ring:
         # self.odom_sub = rospy.Subscriber('/odom', Odometry, self.odom_callback)
         # self.odom = None
 
-        self.img_sub = rospy.Subscriber('/camera/depth/image_raw', Image, self.imageDEPT_callback)
+        self.img_sub = rospy.Subscriber('/arm_camera/depth/image_raw', Image, self.imageDEPT_callback)
         self.depth_img = None
 
 
@@ -61,8 +62,19 @@ class The_Ring:
         self.colors = ( (np.array([0.22023449, 0.95504346, 0.19155043]), 'green'),
                         (np.array([0.18645276, 0.18645276, 0.18645276]), 'black'),
                         (np.array([0.36964507, 0.6392554, 0.97609829]), 'blue'),
-                        (np.array([0.47018454, 0.23760092, 0.22946943]), 'red'))
+                        (np.array([0.47018454, 0.23760092, 0.22946943]), 'red'),
+                        (np.array([0.93, 0.93, 0.93]), 'gray'))
         #self.color_names = ('green', 'black', 'blue', 'red')
+        
+        self.arm_movement_pub = rospy.Publisher('/turtlebot_arm/arm_controller/command', JointTrajectory, queue_size=1)
+        
+        self.extend = JointTrajectory()
+        self.extend.joint_names = ["arm_shoulder_pan_joint", "arm_shoulder_lift_joint", "arm_elbow_flex_joint", "arm_wrist_flex_joint"]
+        self.extend.points = [JointTrajectoryPoint(positions=[0,-2,2.5,-0.8],
+                                                    time_from_start = rospy.Duration(1))]
+        rospy.sleep(0.5)
+        self.arm_movement_pub.publish(self.extend)
+        rospy.sleep(1.5)
     
     def nearest_neighbour(self, col):
         min_dist = 100
@@ -101,14 +113,14 @@ class The_Ring:
         point_s.point.x = -y
         point_s.point.y = z
         point_s.point.z = x
-        point_s.header.frame_id = "camera_rgb_optical_frame"
+        point_s.header.frame_id = "arm_camera_rgb_optical_frame"
         point_s.header.stamp = rospy.Time(0)
 
         # !Get the point in the "map" coordinate system
         point_world = self.tf_buf.transform(point_s, "map",timeout=rospy.Duration(0.20))
 
         # Create a Pose object with the same position
-        world_point = (point_world.point.x, point_world.point.y, point_world.point.z)
+        world_point = [point_world.point.x, point_world.point.y, point_world.point.z]
         if math.isnan(world_point[0]) or math.isnan(world_point[1] or math.isnan(world_point[2])):
             return
         
@@ -122,7 +134,11 @@ class The_Ring:
                 # TODO:ajuuust the position of the ring
                 
                 self.rings[i][2] += 1
-                if self.rings[i][2] == 5:
+                self.rings[i][0][0] = float(self.rings[i][0][0] * 0.5 + world_point[0] * 0.5)
+                self.rings[i][0][1] = float(self.rings[i][0][1] * 0.5 + world_point[1] * 0.5)
+                self.rings[i][0][2] = float(self.rings[i][0][2] * 0.5 + world_point[2] * 0.5)
+                
+                if self.rings[i][2] == 8:
                     #make sure that we have detected the ring 3 times
                     self.publish_ring(i,point_world,marker_color)
                     break
@@ -131,6 +147,8 @@ class The_Ring:
             #add new ring 
             print("New ring detected!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
             self.rings.append([world_point, color_name,1])
+            
+        rospy.loginfo("Found "+ str(len(self.rings)) +" rings so far")
 
         
 
@@ -279,9 +297,7 @@ class The_Ring:
             y_min = y1 if y1 > 0 else 0
             y_max = y2 if y2 < cv_image.shape[1] else cv_image.shape[1]
 
-            #
             depth_image = self.bridge.imgmsg_to_cv2(depth_img, "32FC1")
-
 
             img_window = depth_image[x_min:x_max,y_min:y_max]
             

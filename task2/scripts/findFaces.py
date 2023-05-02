@@ -262,35 +262,65 @@ class face_handle:
 
         #todo: calculate the position infront of the object
         ob_x,ob_y=mark
-        
-        #get the current position of the robot
-        curPos=self.get_current_pos()
 
-        #calculate the point in aorund of the face
-        tamp=[(ob_x-0.5,ob_y),(ob_x+0.5,ob_y),(ob_x,ob_y-0.5),(ob_x,ob_y+0.5)]
-        tmp=[]
-
-        #check if the point is reachable to the robot
-        for p in tamp:
-            if self.check_point_rad(p[0],p[1]):
-                tmp.append(p)
+        #closest point from wall to mark
         
-        #calculate the distance from the robot to the point  
-        for i in range(len(tmp)):
-            distance=math.sqrt((tmp[i][0] - curPos[0])**2 + (tmp[i][1] - curPos[1])**2)
-            a=tmp[i]
-            tmp[i]=[distance,a]
-
-        #sort the points by distance
-        tmp=sorted(tmp)
+        wall_coord = self.find_closest_wall(mark)
         
-        if tmp==[]:
-            #if there is no point to go to
-            rospy.loginfo("NO POINTS TO GO TO!!!!!!!!!!!")
-            return
-        #choses the closest viable point
-        point=tmp[0][1]
+        #calculate line from wall_cord to ob_x,ob_y
+        center = np.array([ob_x, ob_y])
+        wall = np.array([wall_coord[0], wall_coord[1]])
+        
+        # Calculate the direction vector from center to wall
+        direction = center - wall
+
+        # Calculate the point that is 0.5 meters away from the wall on the opposite side of the center
+        opposite_point = wall + direction/np.linalg.norm(direction)*0.5
+        
+        #convert np.array to tuple
+        opposite_point = tuple(opposite_point)
+
+        #calculate orientation of the robot to face the point
+        z, w = self.calculate_z_w( (ob_x,ob_y), opposite_point )
+        point=opposite_point+(z,w)
         
         return point
+    
+    def find_closest_wall(self, mark, max_radius=0.5):
+        res = self.map_resolution # map resolution
+        
+        # convert world coordinates to map coordinates
+        x_map = int((mark[0] - self.map_transform.position.x) / res)
+        y_map = int((mark[1] - self.map_transform.position.y) / res)
+        
+        # check if point is out of bounds
+        #if x_map < 0 or x_map >= self.cv_map.shape[1] or y_map < 0 or y_map >= self.cv_map.shape[0]:
+        #    return False
+
+        closest_dist = float('inf')
+        closest_point = None
+        for radius in range(1, int(max_radius / res) + 1):
+            for i in range(-radius, radius + 1):
+                for j in range(-radius, radius + 1):
+                    if i ** 2 + j ** 2 > radius ** 2:
+                        continue # skip points outside of circle
+                    x_curr = x_map + i
+                    y_curr = y_map + j
+                    if x_curr >= 0 and x_curr < self.cv_map.shape[1] and y_curr >= 0 and y_curr < self.cv_map.shape[0]:
+                        data_val = self.cv_map[y_curr, x_curr]
+                        if data_val == 100:
+                            # convert map coordinates to world coordinates
+                            x_curr = x_curr * res + self.map_transform.position.x
+                            y_curr = y_curr * res + self.map_transform.position.y
+
+                            # calculate distance from current point to original point
+                            dist = math.sqrt((x_curr - mark[0]) ** 2 + (y_curr - mark[1]) ** 2)
+
+                            # update closest point if distance is smaller
+                            if dist < closest_dist:
+                                closest_dist = dist
+                                closest_point = (x_curr, y_curr)
+
+        return closest_point
 
         

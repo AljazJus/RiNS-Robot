@@ -101,6 +101,9 @@ class park_controller():
         
         self.completion_pub = rospy.Publisher('/parking_completed', Bool, queue_size=1)
         
+        self.arm_movement_pub.publish(self.retract)
+        rospy.sleep(0.5)
+        
 
         # Object we use for transforming between coordinate frames
         self.tf_buf = tf2_ros.Buffer()
@@ -145,14 +148,6 @@ class park_controller():
         # Get the angles in the base_link relative coordinate system
         x,y,z = dist*np.cos(angle_to_target_x), dist*np.sin(angle_to_target_x), dist * np.sin(angle_to_target_y)
 
-        ### Define a stamped message for transformation - directly in "base_frame"
-        #point_s = PointStamped()
-        #point_s.point.x = x
-        #point_s.point.y = y
-        #point_s.point.z = 0.3
-        #point_s.header.frame_id = "base_link"
-        #point_s.header.stamp = rospy.Time(0)
-
         # Define a stamped message for transformation - in the "camera rgb frame"
         point_s = PointStamped()
         point_s.point.x = -y
@@ -183,17 +178,6 @@ class park_controller():
         quaternion = (t.transform.rotation.x, t.transform.rotation.y, t.transform.rotation.z, t.transform.rotation.w)
         euler = euler_from_quaternion(quaternion)
         self.current_yaw = euler[2]
-
-        
-        # for r in self.rings:
-        #     if  abs(world_point[0] - r[0][0]) < self.min_limit and \
-        #         abs(world_point[1] - r[0][1]) < self.min_limit and \
-        #         abs(world_point[2] - r[0][2]) < self.min_limit:
-        #         rospy.loginfo("TOO CLOSE TO ANOTHER RING")
-        #         if self.search_for_parking:
-        #             self.park(world_point, point_base)
-        #             self.search_for_parking = False
-        #         return
         
         self.rings.append((world_point, color_name))
         # Create a Pose object with the same position
@@ -220,11 +204,8 @@ class park_controller():
         marker.id = self.marker_num
         marker.scale = Vector3(0.1, 0.1, 0.1)
         marker.color = marker_color
-        
 
         self.markers_pub.publish(marker)
-        
-        #point_base = self.tf_buf.transform(point_b, "map")
         
         # Get coordinate of base in map frame
         rospy.loginfo("this is the point in the map frame: " + str(point_world))
@@ -253,10 +234,7 @@ class park_controller():
         self.markers_pub.publish(marker)
 
         self.marker_array.markers.append(marker)
-        # rospy.loginfo("IM HERE")
-        #if self.search_for_parking:
         self.park(world_point, point_base)
-            #self.search_for_parking = False
 
         
 
@@ -318,7 +296,6 @@ class park_controller():
         self.cmd_vel_pub.publish(twist)
         rospy.sleep(1)
         self.moves_made += 1
-        ## if(self.moves_made < 3):
         self.image_sub = rospy.Subscriber("/arm_camera/rgb/image_raw", Image, self.image_callback)
         self.arm_movement_pub.publish(self.check)
         
@@ -367,7 +344,7 @@ class park_controller():
 
 
         # Detect circles
-        circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1, 20, param1=80, param2=50, minRadius=150, maxRadius=250)
+        circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1, 5, param1=80, param2=40, minRadius=120, maxRadius=250)
         if circles is not None:
             candidates = []
             circles = np.round(circles[0, :]).astype("int")
@@ -387,8 +364,6 @@ class park_controller():
                 y1 = int(y - r)
                 y2 = int(y + r)
 
-                #img_window = gray[y1:y2, x1:x2]
-                #depth_img_window = depth_img[y1:y2, x1:x2]
 
                 depth_img = self.bridge.imgmsg_to_cv2(depth_img_msg, desired_encoding='passthrough')
                 if depth_img is not None:
@@ -414,6 +389,7 @@ class park_controller():
             print("Processing is done! found", len(candidates), "candidates for rings")
             if len(candidates) > 0:
                 self.image_sub.unregister()
+                
             for c in candidates:
                 circle = c[0]
                 depth_mean = c[1]
@@ -424,9 +400,9 @@ class park_controller():
 
                 color_name = self.nearest_neighbour(c)
                 
-                #cv2.imshow("Detected circles", cv2.circle(cv_image, (int(x), int(y)), int(r), (0, 255, 0), 2))
-                #cv2.waitKey(0)
-                #cv2.destroyAllWindows() 
+                cv2.imshow("Detected circles", cv2.circle(cv_image, (int(x), int(y)), int(r), (0, 255, 0), 2))
+                cv2.waitKey(0)
+                cv2.destroyAllWindows() 
                 
                 if self.moves_made < 2:
                     self.stop = JointTrajectory()
@@ -446,12 +422,7 @@ class park_controller():
                 left = self.left.points[0].positions
                 extend = self.extend.points[0].positions
                 check = self.check.points[0].positions
-                # rospy.loginfo('---------------------')
-                # rospy.loginfo('Actual: ' + str(actual))
-                # rospy.loginfo('Right:'+ str(right))
-                # rospy.loginfo('Left:'+ str(left))
-                # rospy.loginfo('Check:'+ str(extend))
-                # rospy.loginfo('---------------------')
+
                 if abs(actual[0] - extend[0]) < 0.05 and abs(actual[1] - extend[1]) < 0.05 and abs(actual[2] - extend[2]) < 0.05 and abs(actual[3] - extend[3]) < 0.5:
                     self.arm_movement_pub.publish(self.right)
                     rospy.loginfo('Right-ed arm!')
