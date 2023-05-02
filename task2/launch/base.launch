@@ -58,5 +58,6 @@
 
   <!-- view_navigation.launch -->
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find turtlebot_rviz_launchers)/rviz/navigation.rviz"/>
-
+    
+  <node pkg="sound_play" type="soundplay_node.py" name="soundplay_node"/>
 </launch>
