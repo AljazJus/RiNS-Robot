@@ -22,10 +22,8 @@
 #include <nav_msgs/Odometry.h>
 #include <cmath>
 #include <vector>
-
 #include "task2/Cylinder.h"
-
-
+#include <sound_play/sound_play.h>
 
 ros::Publisher pubx;
 ros::Publisher puby;
@@ -47,12 +45,19 @@ float actual_colors[4][3] = {
   {0.227451f, 0.5529412f, 1.0f},      //blue
   {1.0f, 0.9764706f, 0.07058824f}     //yellow
 };
-
+/*
 float colors[4][3] ={
   {0.409859f, 0.193088f, 0.187731f},   //red
   {0.204892f, 0.414122f, 0.200939f},   //green
   {0.185734f, 0.212379f, 0.248808f},   //blue
   {0.284085f, 0.281274f, 0.170059f}    //yellow
+};
+*/
+float colors[4][3] ={
+  {0.61604f, 0.278239f, 0.257848f},   //red
+  {0.231961f, 0.715599f, 0.209804f},   //green
+  {0.266592f, 0.408255f, 0.600814f},   //blue
+  {0.371207f, 0.366246f, 0.177439f}    //yellow
 };
 float colors_ideal[4][3] = {
   {1.0f, 0.0f, 0.0f},   //red
@@ -91,14 +96,14 @@ cloud_cb (const pcl::PCLPointCloud2ConstPtr& cloud_blob)
   counter++;
   if(counter == 30) {
     counter = 0;
-    // std::cout << "cylinder print out" << std::endl;
+    std::cout << "cylinder print out" << std::endl;
     for(int i = 0; i < cylinders.size(); i++) {
       task2::Cylinder current = cylinders[i];
-      // std::cout << i << std::endl;
-      // std::cout << "Position: x=" << current.x << ", y=" << current.y << std::endl;
-      // std::cout << "Conviction: " << current.conviction << std::endl;
-      // std::cout << "Color: " << current.color << std::endl;
-      // std::cout << "---------" << std::endl;
+      std::cout << i << std::endl;
+      std::cout << "Position: x=" << current.x << ", y=" << current.y << std::endl;
+      std::cout << "Conviction: " << current.conviction << std::endl;
+      std::cout << "Color: " << current.color << std::endl;
+      std::cout << "---------" << std::endl;
     }
   }
   ros::Time time_rec, time_test;
@@ -210,7 +215,7 @@ cloud_cb (const pcl::PCLPointCloud2ConstPtr& cloud_blob)
     
     if(cloud_cylinder->points.size() < 300) return;
 
-
+    static sound_play::SoundClient sc;
     pcl::compute3DCentroid (*cloud_cylinder, centroid);
     //std::cerr << "centroid of the cylindrical component: " << centroid[0] << " " <<  centroid[1] << " " <<   centroid[2] << " " <<   centroid[3] << std::endl;
 
@@ -364,7 +369,10 @@ cloud_cb (const pcl::PCLPointCloud2ConstPtr& cloud_blob)
         cylinders.push_back(newCylinder);
 
         cylinders_pub.publish(marker);
-        std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!New cylinder" << std::endl;
+        std::cout << "New cylinder" << std::endl;
+        
+        //say the color of the cylinder
+        sc.say(newCylinder.color + " cylinder");
       }
 
 
@@ -407,7 +415,6 @@ main (int argc, char** argv)
   //pubm = nh.advertise<visualization_msgs::Marker>("detected_cylinder",1);
 
   cylinders_pub = nh.advertise<visualization_msgs::Marker>("cyliders", 20);
-  
   // Spin
   ros::spin ();
 }
