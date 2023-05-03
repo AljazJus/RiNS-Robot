@@ -400,9 +400,9 @@ class park_controller():
 
                 color_name = self.nearest_neighbour(c)
                 
-                cv2.imshow("Detected circles", cv2.circle(cv_image, (int(x), int(y)), int(r), (0, 255, 0), 2))
-                cv2.waitKey(0)
-                cv2.destroyAllWindows() 
+                #cv2.imshow("Detected circles", cv2.circle(cv_image, (int(x), int(y)), int(r), (0, 255, 0), 2))
+                #cv2.waitKey(0)
+                #cv2.destroyAllWindows() 
                 
                 if self.moves_made < 2:
                     self.stop = JointTrajectory()

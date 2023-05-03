@@ -15,6 +15,7 @@ import math
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Quaternion
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
+from message_filters import ApproximateTimeSynchronizer, Subscriber
 
 
 class The_Ring:
@@ -31,19 +32,20 @@ class The_Ring:
         self.marker_num = 1
 
         # Subscribe to the image and/or depth topic
-        self.image_sub = rospy.Subscriber("/arm_camera/rgb/image_raw", Image, self.imageRGB_callback)
+        self.image_sub = Subscriber("/arm_camera/rgb/image_raw", Image)
         self.rgb_img = None
         self.timestamp = None
 
         # self.depth_sub = rospy.Subscriber("/camera/depth_registered/image_raw", Image, self.depth_callback)
 
         # self.odom_sub = rospy.Subscriber('/odom', Odometry, self.odom_callback)
-        # self.odom = None
+        # self.odom = Noned
 
-        self.img_sub = rospy.Subscriber('/arm_camera/depth/image_raw', Image, self.imageDEPT_callback)
+        self.img_sub = Subscriber('/arm_camera/depth/image_raw', Image)
         self.depth_img = None
 
-
+        self.ats = ApproximateTimeSynchronizer([self.img_sub, self.image_sub], queue_size=10, slop=0.1)
+        self.ats.registerCallback(self.image_prices)
         self.in_process = False
 
         # Publiser for the visualization markers
@@ -54,8 +56,9 @@ class The_Ring:
         self.tf_buf = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buf)
         
-        self.min_limit = 0.4
+        self.min_limit = 0.3
         self.rings = []
+        self.published_rings = []
         self.green_ring = None
         self.window_dim = 3
         self.epsilon = 0.01
@@ -70,11 +73,12 @@ class The_Ring:
         
         self.extend = JointTrajectory()
         self.extend.joint_names = ["arm_shoulder_pan_joint", "arm_shoulder_lift_joint", "arm_elbow_flex_joint", "arm_wrist_flex_joint"]
-        self.extend.points = [JointTrajectoryPoint(positions=[0,-2,2.5,-0.8],
+        self.extend.points = [JointTrajectoryPoint(positions=[0,-2,2.5,-0.5],
                                                     time_from_start = rospy.Duration(1))]
         rospy.sleep(0.5)
         self.arm_movement_pub.publish(self.extend)
-        rospy.sleep(1.5)
+        rospy.sleep(3)
+        
     
     def nearest_neighbour(self, col):
         min_dist = 100
@@ -99,6 +103,15 @@ class The_Ring:
 
         # Get the angles in the base_link relative coordinate system
         x,y,z = dist*np.cos(angle_to_target_x), dist*np.sin(angle_to_target_x), dist * np.sin(angle_to_target_y)
+        
+        dist = math.sqrt(x**2 + y**2)
+        
+        print("Distance to the ring: " + str(dist))
+        
+        #if(dist > 4):
+        #    return
+        
+        
 
         ### Define a stamped message for transformation - directly in "base_frame"
         #point_s = PointStamped()
@@ -117,14 +130,19 @@ class The_Ring:
         point_s.header.stamp = rospy.Time(0)
 
         # !Get the point in the "map" coordinate system
-        point_world = self.tf_buf.transform(point_s, "map",timeout=rospy.Duration(0.20))
+        try:
+            point_world = self.tf_buf.transform(point_s, "map",timeout=rospy.Duration(0.20))
+        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as e:
+            return
 
+        if(point_world.point.z < 0.6):
+            return
         # Create a Pose object with the same position
         world_point = [point_world.point.x, point_world.point.y, point_world.point.z]
         if math.isnan(world_point[0]) or math.isnan(world_point[1] or math.isnan(world_point[2])):
             return
         
-        # Check if the ring is already detected
+        # Check if the ring is already detectedc
         for i,r in enumerate(self.rings):
             if  abs(world_point[0] - r[0][0]) < self.min_limit and \
                 abs(world_point[1] - r[0][1]) < self.min_limit and \
@@ -134,29 +152,41 @@ class The_Ring:
                 # TODO:ajuuust the position of the ring
                 
                 self.rings[i][2] += 1
+                self.rings[i][1].append(color_name)
+                rospy.loginfo("THESE ARE THE COLORS FOUND FOR RING "+str(i)+": "+str(self.rings[i][1]))
+                
                 self.rings[i][0][0] = float(self.rings[i][0][0] * 0.5 + world_point[0] * 0.5)
                 self.rings[i][0][1] = float(self.rings[i][0][1] * 0.5 + world_point[1] * 0.5)
                 self.rings[i][0][2] = float(self.rings[i][0][2] * 0.5 + world_point[2] * 0.5)
                 
-                if self.rings[i][2] == 8:
+                if self.rings[i][2] == 5:
                     #make sure that we have detected the ring 3 times
-                    self.publish_ring(i,point_world,marker_color)
+                    #go through self.rings[i][1] and sum apperance of each color, choose the one with the most apperances
+                    color_name = max(set(self.rings[i][1]), key=self.rings[i][1].count)
+
+                    for pu_r in self.published_rings:
+                        if  abs(world_point[0] - pu_r[0]) < self.min_limit and \
+                            abs(world_point[1] - pu_r[1]) < self.min_limit and \
+                            abs(world_point[2] - pu_r[2]) < self.min_limit:
+                                return
+                            
+                    self.publish_ring(i,point_world,marker_color,color_name)
+                    self.published_rings.append(world_point)
                     break
                 return
         else:
             #add new ring 
             print("New ring detected!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-            self.rings.append([world_point, color_name,1])
+            self.rings.append([world_point, [color_name],1])
             
         rospy.loginfo("Found "+ str(len(self.rings)) +" rings so far")
 
         
 
-    def publish_ring(self,i,point_world,marker_color):
+    def publish_ring(self,i,point_world,marker_color, color_name):
         # Publish the ring that we are sure about
         print("Publishing ring: "+str(i))
         world_point = self.rings[i][0]
-        color_name = self.rings[i][1]
 
 
         pose = Pose()
@@ -205,26 +235,27 @@ class The_Ring:
                 self.image_prices()
 
     
-    def image_prices(self):
+    def image_prices(self, depth_img, rgb_img):
         
         # Check if the images are not None
-        if self.rgb_img is None or self.depth_img is None:
+        if rgb_img is None or depth_img is None:
             return
         
         # Set the flag proces to true
         self.in_process = True
 
         #Set the rgb imagedata
-        data=self.rgb_img
+        data=rgb_img
 
         #Set the depth image data
-        depth_img = self.depth_img
+        depth_img = depth_img
 
         # Convert the image to OpenCV format
         try:
             cv_image = self.bridge.imgmsg_to_cv2(data, "rgb8")
         except CvBridgeError as e:
             print(e)
+            return
         
         # Set the dimensions of the image
         self.dims = cv_image.shape
@@ -303,6 +334,7 @@ class The_Ring:
             
             #middle pixel index
             mpi = (round(img_window.shape[0] / 2), round(img_window.shape[1] / 2))
+            
             middle_window = img_window[(mpi[0] - self.window_dim):(mpi[0] + self.window_dim), (mpi[1] - self.window_dim):(mpi[1] + self.window_dim)]
             #print(middle_window)
             
@@ -314,12 +346,18 @@ class The_Ring:
             #cv2.imwrite(f"ring_img_{len(self.rings) + 1}.jpg", img_window_color)
 
             print("image_window_color_shape", img_window_color.shape)
+            
             valid_indexes = ~np.isnan(img_window)
             #img_window = img_window.reshape(-1)
             img_window = img_window[valid_indexes]
             img_window_color_valid = img_window_color[valid_indexes]
             print("img_window color_valid", img_window_color_valid.shape)
             c = np.mean(img_window_color_valid, axis=0) / 255
+            
+            #cv2.imshow("Image window",cv_image)
+            #cv2.imshow("Depth window",depth_image)
+            #cv2.waitKey(1)
+            
             print(c)
             color_name = self.nearest_neighbour(c)
 

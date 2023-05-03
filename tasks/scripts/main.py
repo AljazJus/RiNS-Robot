@@ -36,7 +36,8 @@ import numpy as np
 from nav_msgs.msg import OccupancyGrid
 from tf.transformations import quaternion_from_euler,euler_from_quaternion
 
-from findFaces import face_handle
+from findFaces import FindFace
+
 
 
 class Main_task:
@@ -45,31 +46,15 @@ class Main_task:
 
         #initiate the node
         rospy.init_node('Main_task')
-
-        print(sys.path)
+        print(FindFace)
         #face detection/ handeling object
-        self.face=face_handle(self)
+        self.face=FindFace(self)
 
         #array of detected faces
         self.faces=[]
-        self.face_count=0
-        
-        #array of detected cylinders
-        self.cylinders=[]
-        self.cylinders_markers=[]
-
-        #array of detected rings
-        self.rings=[]
-        self.rings_markers=[]
 
         #radius around the face that is considered to be the face
         self.rad=0.4
-
-        # subscribing to the cilinder detection
-        self.cylinder_sub=rospy.Subscriber("cyliders", Marker, self.cylinder_handle)
-
-        # subscribing to the ring detection
-        self.ring_sub=rospy.Subscriber("rings", Marker, self.ring_handle)
 
         #subscribing to the face markers
         self.face_sub=rospy.Subscriber("face_markers", MarkerArray, self.face_handle)
@@ -83,23 +68,27 @@ class Main_task:
         #publisher for the goal markers
         self.make_plan_service = rospy.ServiceProxy('/move_base/make_plan', GetPlan)
 
-        #parking piblisher 
-        self.park_pub = rospy.Publisher("park_initiated", Bool, queue_size=5)
-
         #publisher for sound
         self.soundhandle = SoundClient()
 
+        #map data
+        self.cv_map = None
+        self.map_resolution = None
+        self.map_transform = None
+        self.bridge = CvBridge()
+
+        #subscribing to the map data
+        rospy.Subscriber("/map", OccupancyGrid, self.map_callback)
+
+        
         #this is an array taht hold all the markers we eill draw on rviz
         self.markerArray = MarkerArray()
-        
-        self.colors = {"green": np.array([0, 1, 0.0]), "black": np.array([0.0, 0.0, 0.0]), "blue": np.array([0.0, 0.0, 1]), "red": np.array([1, 0.0, 0.0]), "gray": np.array([0.93, 0.93, 0.93]) }
 
         #id of markers
         self.i=0
 
         #arrat of locations infront of the faces  
         self.newGoals=[]
-
 
         #array of goals
         self.goals =[
@@ -144,8 +133,6 @@ class Main_task:
             (-1.0149805545806885, 1.5947914123535156, 0.8971746531646282, 0.44167594650255637),
 
             (-1.3768168687820435, 1.9692890644073486, 0.43751997472804754, 0.899208691969761),
-            
-            (-1.321938157081604, 1.6762330532073975, -0.6766015185294195, 0.7363493634978464),
 
             (0.15961682796478271, 1.9827066659927368, 0.6905718388806782, 0.7232638075729759),
 
@@ -153,7 +140,7 @@ class Main_task:
 
            (0.542794942855835, 2.020752429962158, 0.9531778262148796, 0.3024103695515035),
 
-          (1.3778777122497559, 1.950562596321106, -0.007862214953451577, 0.9999690923103702),
+           (1.3778777122497559, 1.950562596321106, -0.007862214953451577, 0.9999690923103702),
 
 
            (1.1759477853775024, 1.1275452375411987, -0.9490859112438822, 0.3150173536146377),
@@ -205,99 +192,18 @@ class Main_task:
         for face in self.faces:
             rospy.loginfo("Found:{} ({}, {}) seen {}".format(face[0], face[1][0], face[1][1],face[2]))
         rospy.loginfo("////////////////////FACES////////////////////////")
-
-        rospy.loginfo("////////////////////RINGS////////////////////////")
-        for i,ring in enumerate(self.rings):
-            rospy.loginfo("Found:{} ({}, {}) seen color {}".format(i, ring[0][0], ring[0][1],ring[1]))
-        rospy.loginfo("////////////////////RINGS////////////////////////")
-
-        rospy.loginfo("////////////////////cylinders////////////////////////")
-        for i,cylinder in enumerate(self.cylinders):
-            rospy.loginfo("Found:{} ({}, {}) seen ".format(i, cylinder[0][0], cylinder[0][1]))
-        rospy.loginfo("////////////////////cylinders////////////////////////")
         
-        self.face_sub.unregister()
-        self.ring_sub.unregister()
-
-        for i,ring in enumerate(self.rings):
-            if ring[1] == "green":
-                pos=self.face.approche_position(ring[0])
-                self.add_maeker(pos,ColorRGBA(0, 1, 1, 1))
-                self.face_pub.publish(self.markerArray)
-                if self.move_to_goal(pos):
-                    rospy.loginfo("Reached the goal")
-                    #new_msg=Bool.data(True)
-                    self.park_pub.publish(True)
-                break
-        else :
-            print("No green ring found!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-
+    
         #this draws all the markers 
         self.face_pub.publish(self.markerArray)
-        rospy.sleep(10)
-    
-
-    def ring_handle(self,msg):
-        #TODO: read the correct color 
-
-        color=msg.ns.split(":")[0]
-        x=msg.pose.position.x
-        y=msg.pose.position.y
-        if(x is None or y is None):
-            return
         
-        if color == "gray":
-            print("False detection")
-            return
-        
-        self.rings.append([(x,y),color])
-        msg.color = ColorRGBA(self.colors[color][0],self.colors[color][1],self.colors[color][2], 1)
-        self.rings_markers.append(msg)
-        self.marker_update()
-
-    def cylinder_handle(self,msg):
-        
-        #rospy.loginfo(msg)
-        x=msg.pose.position.x
-        y=msg.pose.position.y
-
-        if(math.isnan(y) or math.isnan(x)):
-            rospy.loginfo(msg)
-            return
-        #check if the face is already in the list and has been added before
-        for i,cyl in enumerate(self.cylinders):
-            cx=cyl[0][0]
-            cy=cyl[0][1]
-            
-            #check if the new c  is close to the cyl in the list
-            if(abs(x-cx)<0.5 and abs(y-cy)<0.5):
-                rospy.loginfo("Edit a cylinder "+str(i)+"("+str(cx)+" , "+str(cy)+")")
-                #ajust the position of the cylinder
-                self.cylinders_markers[i].pose.position.x=(x*0.5+cx*0.5)
-                self.cylinders_markers[i].pose.position.y=(y*0.5+cy*0.5)
-                break
-        else:
-            color=msg.color
-            self.cylinders.append([(x,y),color])
-            self.cylinders_markers.append(msg)
-
-        self.marker_update()
     
     def face_handle(self,msg):
         new_faces=self.face.face_detected(msg)
-
-        if new_faces is None:
-            return
-        
-        if(len(new_faces)>self.face_count):
-            self.face_count=self.face_count+1
-            self.move_to_face(new_faces[-1][3])
-        
+        if(len(new_faces)>len(self.faces)):
+            self.move_to_face(new_faces[len(new_faces)-1][3])
         self.faces=new_faces 
 
-        self.marker_update()
-
-    def marker_update(self):
         #this draws all the markers
         #and clear then to draw new ones       
         self.markerArray = MarkerArray()
@@ -309,22 +215,15 @@ class Main_task:
         self.i=0
 
         rospy.loginfo("FACEPRIT")
-        #this puts all the face marekers to mareker array 
+        #this puts all the marekers to mareker array 
         for face in self.faces:
             self.add_maeker(face[1],ColorRGBA(0, 1, 1, 1),face[0])
             self.add_arrow(face[3],ColorRGBA(0, 1, 0, 1))
 
-        #this puts all the cylinder markers to marker array
-        for cylinder in self.cylinders_markers:
-            self.markerArray.markers.append(cylinder)
-        
-        #this puts all the ring markers to marker array
-        for ring in self.rings_markers:
-            self.markerArray.markers.append(ring)
-
-        #darw the markers SPHERE
+        #darw the markers
         self.face_pub.publish(self.markerArray)
-    
+
+            
     def move_to_face(self,point):
         """
         This function moves the robot to the point that it calculates infron of the face
@@ -340,7 +239,8 @@ class Main_task:
 
         #greets the face "HELO"
         self.greet_face()
-              
+        
+           
     def move_to_goal(self ,point):
             """this function moves the robot to the point
             It calculates the path and moves to the goal"""
@@ -374,7 +274,7 @@ class Main_task:
             self.move_status="Waiting"
             return True
            
-    def add_maeker(self,point,color,name="Park"):
+    def add_maeker(self,point,color,name="Tese"):
         """
         Add a marker to the marker array
         """
@@ -417,6 +317,57 @@ class Main_task:
         voice = 'voice_kal_diphone'
         self.soundhandle.say('Hello', voice)
 
+    def map_callback(self, data):
+        """callback function for the map data"""
+        try:
+            self.cv_map = np.array(data.data).reshape((data.info.height, data.info.width))
+            self.map_resolution = data.info.resolution
+            self.map_transform = data.info.origin
+        except CvBridgeError as e:
+            rospy.logerr(e)
+            return
+        
+        #self.cv_map = np.flipud(self.cv_map)
+        self.map_resolution = data.info.resolution
+        self.map_transform = data.info.origin
+
+    def check_point_rad(self, x, y):
+        """
+        Check if a point is reachable to the robot 
+        If there are obstacles near the point it will return false
+        """
+        
+        if (math.isnan(x) or math.isnan(y)):
+            return False
+
+        radius = 0.2 # radius to search for valid points
+        res = self.map_resolution # map resolution
+
+        # convert world coordinates to map coordinates
+        x_map = int((x - self.map_transform.position.x) / res)
+        y_map = int((y - self.map_transform.position.y) / res)
+        
+        # check if point is out of bounds
+        if x_map < 0 or x_map >= self.cv_map.shape[1] or y_map < 0 or y_map >= self.cv_map.shape[0]:
+            return False
+        
+        if self.cv_map[y_map, x_map]==-1:
+            return False
+
+        # find closest point with a value of 100 within radius
+        for i in range(-int(radius / res), int(radius / res) + 1):
+            for j in range(-int(radius / res), int(radius / res) + 1):
+                if i ** 2 + j ** 2 > (radius / res) ** 2:
+                    continue # skip points outside of circle
+                x_curr = x_map + i
+                y_curr = y_map + j
+                if x_curr >= 0 and x_curr < self.cv_map.shape[1] and y_curr >= 0 and y_curr < self.cv_map.shape[0]:
+                    data_val = self.cv_map[y_curr, x_curr]
+                    if data_val == 100:
+                        return False
+
+        return True
+
     def add_arrow(self,point,color):
         """adds an arrow to the point"""
         marker = Marker()
@@ -440,6 +391,18 @@ class Main_task:
         marker.id = self.i
         self.i=self.i+1
 
+    def simila_angle(self, face,point):
+        """checks if the face is in the same direction as the bot"""
+        #print(face_orientation)
+        #print(face)
+        face_angle = euler_from_quaternion((0,0,face[2],face[3]))
+        point_angle = euler_from_quaternion( (0,0,point[2],point[3]))
+
+
+        if abs(face_angle[2] - point_angle[2]) < 0.7 :
+            return True
+        else:
+            return False
 
 if __name__ == '__main__':
   goal_mover = Main_task()

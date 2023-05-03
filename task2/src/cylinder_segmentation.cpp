@@ -126,13 +126,13 @@ cloud_cb (const pcl::PCLPointCloud2ConstPtr& cloud_blob)
     }
 
     //normalized colors
-    std::cout << "Normalized colors";
+    // std::cout << "Normalized colors";
     for(int i = 0; i < 4; i++) {
-      std::cout << color_names[i] << ": ";
+      // std::cout << color_names[i] << ": ";
       for(int j = 0; j < 3; j++) {
-        std::cout << normalized_actual_colors[i][j] << " ";
+        // std::cout << normalized_actual_colors[i][j] << " ";
       }
-      std::cout << std::endl;
+      // std::cout << std::endl;
     }
   }
   ros::Time time_rec, time_test;

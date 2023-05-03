@@ -22,4 +22,4 @@ catkin_package()
 
 #catkin_install_python(PROGRAMS scripts/detect_rings DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
-catkin_install_python(PROGRAMS scripts/findFaces.py  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+catkin_install_python(PROGRAMS scripts/main.py DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
