@@ -45,6 +45,7 @@ float actual_colors[4][3] = {
   {0.227451f, 0.5529412f, 1.0f},      //blue
   {1.0f, 0.9764706f, 0.07058824f}     //yellow
 };
+float normalized_actual_colors[4][3];
 /*
 float colors[4][3] ={
   {0.409859f, 0.193088f, 0.187731f},   //red
@@ -54,10 +55,10 @@ float colors[4][3] ={
 };
 */
 float colors[4][3] ={
-  {0.61604f, 0.278239f, 0.257848f},   //red
-  {0.231961f, 0.715599f, 0.209804f},   //green
-  {0.266592f, 0.408255f, 0.600814f},   //blue
-  {0.371207f, 0.366246f, 0.177439f}    //yellow
+  {0.559538, 0.229459, 0.211004},   //red
+  {0.193382, 0.631492, 0.175126},   //green
+  {0.230513, 0.321747, 0.44774},   //blue
+  {0.410963, 0.405192, 0.183845}    //yellow
 };
 float colors_ideal[4][3] = {
   {1.0f, 0.0f, 0.0f},   //red
@@ -69,14 +70,32 @@ const char* color_names[4] = {"Red", "Green", "Blue", "Yellow"};
 
 int counter = 0;
 
+void getNormalizedColors() {
+  for(int i = 0; i < 4; i++) {
+    float sum = 0;
+    for(int j = 0; j < 3; j++) {
+      sum += actual_colors[i][j];
+    }
+    for(int j = 0; j < 3; j++) {
+      normalized_actual_colors[i][j] = actual_colors[i][j] / sum;
+    }
+  }
+}
 
 int find_best_color(double r, double g, double b) {
+
+  double sum = r + g + b;
+  double normal_r = r / sum;
+  double normal_g = g / sum;
+  double normal_b = b / sum;
+  std::cout << "Cylinder color: " << normal_r << ", " << normal_g << ", " << normal_b << std::endl;
+
   int best_i = -1;
   double smallest_distence = 3;
   for(int i = 0; i < 4; i++) {
-    double diff_r = r - colors[i][0];
-    double diff_g = g - colors[i][1];
-    double diff_b = b - colors[i][2];
+    double diff_r = normal_r - colors[i][0];
+    double diff_g = normal_g - colors[i][1];
+    double diff_b = normal_b - colors[i][2];
 
     double dist = diff_r * diff_r + diff_g * diff_g + diff_b * diff_b;
     //double dist = abs(diff_r) + abs(diff_g) + abs(diff_b);
@@ -104,6 +123,16 @@ cloud_cb (const pcl::PCLPointCloud2ConstPtr& cloud_blob)
       std::cout << "Conviction: " << current.conviction << std::endl;
       std::cout << "Color: " << current.color << std::endl;
       std::cout << "---------" << std::endl;
+    }
+
+    //normalized colors
+    std::cout << "Normalized colors";
+    for(int i = 0; i < 4; i++) {
+      std::cout << color_names[i] << ": ";
+      for(int j = 0; j < 3; j++) {
+        std::cout << normalized_actual_colors[i][j] << " ";
+      }
+      std::cout << std::endl;
     }
   }
   ros::Time time_rec, time_test;
@@ -319,7 +348,6 @@ cloud_cb (const pcl::PCLPointCloud2ConstPtr& cloud_blob)
       double avg_color_b = ((double)color_b) / (255 * counter);
 
       int best_color_index = find_best_color(avg_color_r, avg_color_g, avg_color_b);
-      std::cout << "Cylinder color: " << avg_color_r << ", " << avg_color_g << ", " << avg_color_b << std::endl;
       marker.color.r = colors_ideal[best_color_index][0];
       marker.color.g = colors_ideal[best_color_index][1];
       marker.color.b = colors_ideal[best_color_index][2];
@@ -394,6 +422,9 @@ main (int argc, char** argv)
   // Initialize ROS
   ros::init (argc, argv, "cylinder_segment");
   ros::NodeHandle nh;
+
+  getNormalizedColors();
+
 
 
   if (!nh.getParam("leaf_size", leaf_size))
