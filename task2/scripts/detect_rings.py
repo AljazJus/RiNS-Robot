@@ -17,7 +17,6 @@ from geometry_msgs.msg import Quaternion
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from message_filters import ApproximateTimeSynchronizer, Subscriber
 
-
 class The_Ring:
     def __init__(self):
         rospy.init_node('image_converter', anonymous=True)

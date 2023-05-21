@@ -1,0 +1,5 @@
+bool image_recognition_service_request
+---
+bool success
+int32 prize
+string color

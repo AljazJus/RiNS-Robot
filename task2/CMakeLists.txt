@@ -26,6 +26,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   tf2_geometry_msgs
   message_generation
+  message_runtime
 )
 
 ## Add include directories
@@ -52,6 +53,11 @@ add_message_files(DIRECTORY msg
   Ring.msg
 )
 
+add_service_files(
+  FILES
+  ImageRecognition.srv
+)
+
 generate_messages(
   DEPENDENCIES
   std_msgs
@@ -72,6 +78,7 @@ catkin_package(
     sensor_msgs
     std_msgs
     message_runtime
+    message_generation
   DEPENDS
     Boost
     Eigen
@@ -80,4 +87,4 @@ catkin_package(
 
 add_executable (cylinder_segmentation_task2 src/cylinder_segmentation.cpp)
 
-catkin_install_python(PROGRAMS scripts/main.py scripts/detect_rings.py scripts/park_control.py DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+catkin_install_python(PROGRAMS scripts/main.py scripts/detect_rings.py scripts/park_control.py scripts/image_recognition.py DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
