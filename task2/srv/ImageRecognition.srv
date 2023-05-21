@@ -1,5 +1,5 @@
-bool image_recognition_service_request
+bool request
 ---
-bool success
+bool wonted
 int32 prize
 string color
