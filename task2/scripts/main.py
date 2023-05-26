@@ -37,6 +37,10 @@ from nav_msgs.msg import OccupancyGrid
 from tf.transformations import quaternion_from_euler,euler_from_quaternion
 
 from findFaces import face_handle
+ 
+from task2.srv import ImageRecognition, ImageRecognitionResponse
+
+from task2.srv import VoiceRecognition, VoiceRecognitionResponse
 
 
 class Main_task:
@@ -62,85 +66,32 @@ class Main_task:
         self.rings=[]
         self.rings_markers=[]
 
-        #radius around the face that is considered to be the face
-        self.rad=0.4
+        #array of wonted criminals
+        self.criminals=[]
 
-        # subscribing to the cilinder detection
-        self.cylinder_sub=rospy.Subscriber("cyliders", Marker, self.cylinder_handle)
+        #clues for the criminal
+        self.clues=[]
 
-        # subscribing to the ring detection
-        self.ring_sub=rospy.Subscriber("rings", Marker, self.ring_handle)
+        #initiate all the subscribers and publishers
+        self.init_pub_sub()
 
-        #subscribing to the face markers
-        self.face_sub=rospy.Subscriber("face_markers", MarkerArray, self.face_handle)
-
-        #publisher for the face markers
-        self.face_pub = rospy.Publisher("Faces_found", MarkerArray, queue_size=5)
-        
-        #publisher for the goal markers
-        self.move_clienr=actionlib.SimpleActionClient('move_base', MoveBaseAction)
-
-        #publisher for the goal markers
-        self.make_plan_service = rospy.ServiceProxy('/move_base/make_plan', GetPlan)
-
-        #parking piblisher 
-        self.park_pub = rospy.Publisher("park_initiated", Bool, queue_size=5)
-
-        #publisher for sound
-        self.soundhandle = SoundClient()
-
-        #this is an array taht hold all the markers we eill draw on rviz
-        self.markerArray = MarkerArray()
-        
         self.colors = {"green": np.array([0, 1, 0.0]), "black": np.array([0.0, 0.0, 0.0]), "blue": np.array([0.0, 0.0, 1]), "red": np.array([1, 0.0, 0.0]), "gray": np.array([0.93, 0.93, 0.93]) }
 
         #id of markers
         self.i=0
 
-        #arrat of locations infront of the faces  
-        self.newGoals=[]
-
-
         #array of goals
         self.goals =[
-           
-            # x: -0.10278880596160889
-            # y: -0.3156306743621826
-            # z: -0.035814481090678175
-            # w: 0.9993584556825471
             (-0.10278880596160889, -0.3156306743621826, -0.035814481090678175, 0.9993584556825471),
-
-            # x: -0.08167016506195068
-            # y: -0.9307079315185547
-            # z: -0.771586336839827
-            # w: 0.6361246142086446
             (-0.08167016506195068, -0.9307079315185547, -0.771586336839827, 0.6361246142086446),
-
-            # x: -1.0353431701660156
-            # y: -0.06289887428283691
-            # z: 0.9944823530281476
-            # w: 0.1049040014279669
             (-1.0353431701660156, -0.06289887428283691, 0.9944823530281476, 0.1049040014279669),
-            # x: -1.4328947067260742
-            # y: -0.08281493186950684
-            # z: -0.8556434375893374
-            # w: 0.517565752064703
+
             (-1.4328947067260742, -0.08281493186950684, -0.8556434375893374, 0.517565752064703),
-            # x: -1.0149805545806885
-            # y: 1.5947914123535156
-            # z: 0.8971746531646282
-            # w: 0.44167594650255637
-            (-1.0149805545806885, 1.5947914123535156, 0.8971746531646282, 0.44167594650255637),
-            # x: -1.0149805545806885
-            # y: 1.5947914123535156
-            # z: 0.8971746531646282
-            # w: 0.44167594650255637
+ 
             (-1.0149805545806885, 1.5947914123535156, 0.8971746531646282, 0.44167594650255637),
 
-            # x: -1.0149805545806885
-            # y: 1.5947914123535156
-            # z: 0.8971746531646282
-            # w: 0.44167594650255637
+            (-1.0149805545806885, 1.5947914123535156, 0.8971746531646282, 0.44167594650255637),
+
             (-1.0149805545806885, 1.5947914123535156, 0.8971746531646282, 0.44167594650255637),
 
             (-1.3768168687820435, 1.9692890644073486, 0.43751997472804754, 0.899208691969761),
@@ -199,26 +150,14 @@ class Main_task:
                     rospy.loginfo("Failed to reach the goal")
                 self.nextGoal=self.nextGoal+1
 
-
-        #print out the list of faces detected
-        rospy.loginfo("////////////////////FACES////////////////////////")
-        for face in self.faces:
-            rospy.loginfo("Found:{} ({}, {}) seen {}".format(face[0], face[1][0], face[1][1],face[2]))
-        rospy.loginfo("////////////////////FACES////////////////////////")
-
-        rospy.loginfo("////////////////////RINGS////////////////////////")
-        for i,ring in enumerate(self.rings):
-            rospy.loginfo("Found:{} ({}, {}) seen color {}".format(i, ring[0][0], ring[0][1],ring[1]))
-        rospy.loginfo("////////////////////RINGS////////////////////////")
-
-        rospy.loginfo("////////////////////cylinders////////////////////////")
-        for i,cylinder in enumerate(self.cylinders):
-            rospy.loginfo("Found:{} ({}, {}) seen ".format(i, cylinder[0][0], cylinder[0][1]))
-        rospy.loginfo("////////////////////cylinders////////////////////////")
+    
+        self.print_final_result()
         
         self.face_sub.unregister()
         self.ring_sub.unregister()
 
+
+        #task 2 koda 
         for i,ring in enumerate(self.rings):
             if ring[1] == "green":
                 pos=self.face.approche_position(ring[0])
@@ -236,6 +175,57 @@ class Main_task:
         self.face_pub.publish(self.markerArray)
         rospy.sleep(10)
     
+    def init_pub_sub(self):
+
+        # subscribing to the cilinder detection
+        self.cylinder_sub=rospy.Subscriber("cyliders", Marker, self.cylinder_handle)
+
+        # subscribing to the ring detection
+        self.ring_sub=rospy.Subscriber("rings", Marker, self.ring_handle)
+
+        #subscribing to the face markers
+        self.face_sub=rospy.Subscriber("face_markers", MarkerArray, self.face_handle)
+
+        #publisher for the face markers
+        self.face_pub = rospy.Publisher("Faces_found", MarkerArray, queue_size=5)
+        
+        #publisher for the goal markers
+        self.move_clienr=actionlib.SimpleActionClient('move_base', MoveBaseAction)
+
+        #publisher for the goal markers
+        self.make_plan_service = rospy.ServiceProxy('/move_base/make_plan', GetPlan)
+
+        #parking piblisher 
+        self.park_pub = rospy.Publisher("park_initiated", Bool, queue_size=5)
+
+        #publisher for sound
+        self.soundhandle = SoundClient()
+
+        #this is an array taht hold all the markers we eill draw on rviz
+        self.markerArray = MarkerArray()
+        
+        # publisher for image recognition call
+        rospy.wait_for_service('image_recognition')
+        self.image_recognition_srv = rospy.ServiceProxy('image_recognition', ImageRecognition)
+
+        self.voice_recognition_srv = rospy.ServiceProxy('voice_initializer', VoiceRecognition)
+
+    def print_final_result(self):
+        #print out the list of faces detected
+        rospy.loginfo("////////////////////FACES////////////////////////")
+        for face in self.faces:
+            rospy.loginfo("Found:{} ({}, {}) seen {}".format(face[0], face[1][0], face[1][1],face[2]))
+        rospy.loginfo("////////////////////FACES////////////////////////")
+
+        rospy.loginfo("////////////////////RINGS////////////////////////")
+        for i,ring in enumerate(self.rings):
+            rospy.loginfo("Found:{} ({}, {}) seen color {}".format(i, ring[0][0], ring[0][1],ring[1]))
+        rospy.loginfo("////////////////////RINGS////////////////////////")
+
+        rospy.loginfo("////////////////////cylinders////////////////////////")
+        for i,cylinder in enumerate(self.cylinders):
+            rospy.loginfo("Found:{} ({}, {}) seen ".format(i, cylinder[0][0], cylinder[0][1]))
+        rospy.loginfo("////////////////////cylinders////////////////////////")
 
     def ring_handle(self,msg):
         #TODO: read the correct color 
@@ -336,8 +326,26 @@ class Main_task:
         #appernd to the list of new goals
         self.goals.insert(self.nextGoal,point)
         #moves to the new goal 
+        
+
+
         self.move_to_goal(point)
 
+        print("DATA FORM A FACE--------------------")
+        try:
+            rez=self.image_recognition_srv(True)
+            if rez.wonted:
+                self.criminals.append([point,rez.color,rez.prize])
+                print("IMAGE DATA: "+rez.color+" "+str(rez.prize))
+            else:
+                hints=self.voice_recognition_srv(True)
+                print("HITS WE HOT:"+hints)
+                
+                for hint in hints.split(","):
+                    self.clues.append(hint)
+
+        except rospy.ServiceException as e:
+            rospy.loginfo("Service call failed: %s"%e)
         #greets the face "HELO"
         self.greet_face()
               

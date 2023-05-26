@@ -56,6 +56,7 @@ add_message_files(DIRECTORY msg
 add_service_files(
   FILES
   ImageRecognition.srv
+  VoiceRecognition.srv
 )
 
 generate_messages(

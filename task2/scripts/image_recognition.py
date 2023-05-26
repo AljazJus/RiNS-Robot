@@ -96,8 +96,8 @@ class ImageRecognitionServer:
         # Recognize the text using Tesseract
         number_text = pytesseract.image_to_string(thresh)
         # print(number_text)
-        cv2.imshow('Poster', thresh)
-        cv2.waitKey(0)
+        # cv2.imshow('Poster', thresh)
+        # cv2.waitKey(0)
         # Filter the recognized text to extract words and digits
 
         digits = ""
@@ -113,8 +113,16 @@ class ImageRecognitionServer:
         words = number_text.split()
 
         # Set the response fields
-        response.wonted = True
-        response.prize = int(digits)
+        if len(digits) == 0 and len(color) == 0:
+            response.wonted = False
+        else: 
+            response.wonted = True
+
+        if digits!="":
+            response.prize = int(digits)
+        else:
+            response.prize = 0
+
         response.color = color
 
         return response

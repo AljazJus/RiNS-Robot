@@ -5,19 +5,19 @@ import rospy
 from std_msgs.msg import String, Bool
 # import speech_recognition from ros-vosk package
 from ros_vosk.msg import speech_recognition
+
+from task2.srv import VoiceRecognition, VoiceRecognitionResponse
 import re
 
 class voice_detector():
     def __init__(self):
         rospy.init_node('voice_detector', anonymous=True)
 
-        self.voice_initializer = rospy.Subscriber("/voice_initializer", Bool, self.initialize_listen)
+        self.voice_initializer = rospy.Service("voice_initializer", VoiceRecognition, self.initialize_listen)
         ## publish a array of colors
-        self.voice_pub = rospy.Publisher("/potential_cylinders", String, queue_size=1)
         self.colors = []
     
     def initialize_listen(self, msg):
-        if msg.data:
             print("I have begun listening to your voice")
             try:
                 message = rospy.wait_for_message("/speech_recognition/final_result", String, timeout=10)
@@ -29,14 +29,12 @@ class voice_detector():
                     message = input("Can you tell me where the thieves are?")
                     colors = self.extract_possible_cylinders(message, self.colors)
                     if len(colors) == 0:
-                        self.voice_pub.publish("")
-                        return
+                        
+                        return ""
                     else:
-                        self.voice_pub.publish(",".join(colors))
-                        return
+                        return ",".join(colors)
                 else:
-                    self.voice_pub.publish(",".join(colors))
-                    return
+                    return ",".join(colors)
             except rospy.exceptions.ROSException as e:
                 print("Timeout occurred:", e)
                 # open text input terminal and wait for the user to write the colors of the cylinders with suspected thieves
@@ -44,11 +42,9 @@ class voice_detector():
 
                 colors = self.extract_possible_cylinders(message, self.colors)
                 if len(colors) == 0:
-                    self.voice_pub.publish("")
-                    return
+                    return ""
                 else:
-                    self.voice_pub.publish(",".join(colors))
-                    return
+                    return ",".join(colors)
     
     
     def extract_possible_cylinders(self, msg, colors = []):
