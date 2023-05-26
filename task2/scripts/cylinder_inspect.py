@@ -197,6 +197,7 @@ class cylinder_inspector():
 
     def recognize_faces(self, image):
         ### recognize face and return bounty
+        x=0
         
 def main():
 
