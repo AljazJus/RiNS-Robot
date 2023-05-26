@@ -22,6 +22,8 @@ from tf.transformations import quaternion_from_euler,euler_from_quaternion
 from sklearn.cluster import KMeans
 import pickle
 
+from task2.srv import CylinderInspect, CylinderInspectResponse
+
 
 
 class cylinder_inspector():
@@ -29,7 +31,7 @@ class cylinder_inspector():
 
         rospy.init_node('cylinder_inspector', anonymous=True)
         
-        self.park_sub = rospy.Subscriber("inspect_initiated", Bool, self.inspect_callback)
+        self.park_sub = rospy.Service("initiate_inspect", CylinderInspect, self.inspect_callback)
         
         # Set up the action client for the move_base action
         self.move_base_client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
@@ -58,18 +60,14 @@ class cylinder_inspector():
         # old JointTrajectoryPoint(positions=[0,0.1,1,0.3]
         self.right = JointTrajectory()
         self.right.joint_names = ["arm_shoulder_pan_joint", "arm_shoulder_lift_joint", "arm_elbow_flex_joint", "arm_wrist_flex_joint"]
-        self.right.points = [JointTrajectoryPoint(positions=[-2.5,1.2,0.2,0.0],
+        self.right.points = [JointTrajectoryPoint(positions=[-2.5,-0.2,0.4,0.8],
                                                     time_from_start = rospy.Duration(4))]
         
         self.left = JointTrajectory()
         self.left.joint_names = ["arm_shoulder_pan_joint", "arm_shoulder_lift_joint", "arm_elbow_flex_joint", "arm_wrist_flex_joint"]
-        self.left.points = [JointTrajectoryPoint(positions=[2.5,1.2,0.2,0.0],
+        self.left.points = [JointTrajectoryPoint(positions=[2.5,-0.2,0.4,0.8],
                                                     time_from_start = rospy.Duration(6))]
         
-        self.check = JointTrajectory()
-        self.check.joint_names = ["arm_shoulder_pan_joint", "arm_shoulder_lift_joint", "arm_elbow_flex_joint", "arm_wrist_flex_joint"]
-        self.check.points = [JointTrajectoryPoint(positions=[0,0.4,0.6,0.5],
-                                                    time_from_start = rospy.Duration(1))]
 
         # An object we use for converting images between ROS format and OpenCV format
         self.bridge = CvBridge()
@@ -90,26 +88,14 @@ class cylinder_inspector():
         self.marker_array = MarkerArray()
         self.marker_num = 1
         
-        self.completion_pub = rospy.Publisher('/prisoner_jail', Bool, queue_size=1)
 
-        # Initialize the face cascade classifier
-        self.face_cascade = cv2.CascadeClassifier('/home/edin/Desktop/ROS/src/exercise4/scripts/haarcascade_frontalface_default.xml')
+        self.face_detected = False
+        self.turns_completed = 0
 
-        # Initialize the face recognizer
-        self.face_recognizer = cv2.face.EigenFaceRecognizer_create()
-        self.face_recognizer.read('/home/edin/Desktop/ROS/src/exercise4/recognition_files/face_dataset.xml')
-
-        # Initialize the face labels
-        with open('/home/edin/Desktop/ROS/src/exercise4/recognition_files/face_labels.pkl', 'rb') as f:
-            self.face_labels= pickle.load(f)
-
-        self.face_labels = {v: k for k, v in self.face_labels.items()}
-        print(self.face_labels)
         rospy.sleep(0.5)
         self.arm_movement_pub.publish(self.extend)
         rospy.sleep(0.5)
         
-
         # Object we use for transforming between coordinate frames
         self.tf_buf = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buf)
@@ -128,51 +114,53 @@ class cylinder_inspector():
         return self.colors[best_index][1]
     
     def inspect_callback(self, msg):
-        if msg.data:
-            # Subscribe to the image and/or depth topic
-            self.image_sub = rospy.Subscriber("/arm_camera/rgb/image_raw", Image, self.image_callback)
-            self.depth_sub = rospy.Subscriber("/arm_camera/depth_registered/image_raw", Image, self.depth_callback)
-       
-    def image_callback(self, data):
-            
-        print('I got a new image!')
+        # Subscribe to the image and/or depth topic
+        
         try:
-            cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+            img = rospy.wait_for_message("/arm_camera/rgb/image_raw", Image)
+            print("Got a new image!")
+        except Exception as e:
+            print(e)
+            return 0
+        
+        try:
+            cv_image = self.bridge.imgmsg_to_cv2(img, "bgr8")
         except CvBridgeError as e:
             print(e)
 
-        # Set the dimensions of the image
+
         self.dims = cv_image.shape
 
         # Tranform image to gayscale and blur
         gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
         gray = cv2.medianBlur(gray, 5)
+
+        val = 0
+
         
-        # Detect faces in the image
-        faces = self.recognize_faces(gray)
+        right = self.right.points[0].positions
+        left = self.left.points[0].positions
+        extend = self.extend.points[0].positions
 
-        cv2.imshow("Image window", faces)
-        cv2.waitKey(1)
-        try:
-            depth_img_msg = rospy.wait_for_message('/arm_camera/depth/image_raw', Image)
+        while(self.turns_completed < 2):
+            result = rospy.wait_for_message('/turtlebot_arm/arm_controller/state', JointTrajectoryControllerState)
+            actual = result.actual.positions
+            if abs(actual[0] - extend[0]) < 0.05 and abs(actual[1] - extend[1]) < 0.05 and abs(actual[2] - extend[2]) < 0.05 and abs(actual[3] - extend[3]) < 0.5:
+                self.arm_movement_pub.publish(self.right)
+                rospy.loginfo('Right-ed arm!')
+                print("Now should turn left")
+            elif abs(actual[0] - right[0]) < 0.05 and abs(actual[1] - right[1]) < 0.05 and abs(actual[2] - right[2]) < 0.05 and abs(actual[3] - right[3]) < 0.5:
+                self.arm_movement_pub.publish(self.left)
+                rospy.loginfo('Left-ed arm!')
+            elif abs(actual[0] - left[0]) < 0.05 and abs(actual[1] - left[1]) < 0.05 and abs(actual[2] - left[2]) < 0.05 and abs(actual[3] - left[3]) < 0.5:
+                self.arm_movement_pub.publish(self.extend)
+                rospy.loginfo('Extend-ed arm!')
+                rospy.sleep(1)
+                self.turns_completed += 1
+        else:
+            self.arm_movement_pub.publish(self.retract)
 
-        except Exception as e:
-            print(e)
-            
-    def depth_callback(self,data):
-        try:
-            depth_image = self.bridge.imgmsg_to_cv2(data, "16UC1")
-        except CvBridgeError as e:
-            print(e)
-
-        # Do the necessairy conversion so we can visuzalize it in OpenCV
-        image_1 = depth_image / 65536.0 * 255
-        image_1 =image_1/np.max(image_1)*255
-
-        image_viz = np.array(image_1, dtype= np.uint8)
-        cv2.imshow("Depth window", image_viz)
-        cv2.waitKey(1)
-    
+        return val
         
     def new_user_command(self, data):
         self.user_command = data.data.strip()
@@ -194,10 +182,9 @@ class cylinder_inspector():
                 print('Unknown instruction:', self.user_command)
                 return(-1)
             self.send_command = False
+        
 
-    def recognize_faces(self, image):
-        ### recognize face and return bounty
-        x=0
+            
         
 def main():
 
