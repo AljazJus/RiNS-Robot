@@ -120,6 +120,9 @@ class ImageRecognitionServer:
         # Set the response fields
         if len(digits) == 0 and len(color) == 0:
             response.wonted = False
+            response.prize = 0
+            response.color = ""
+            return response
         else: 
             response.wonted = True
 
