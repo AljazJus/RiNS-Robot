@@ -393,6 +393,8 @@ cloud_cb (const pcl::PCLPointCloud2ConstPtr& cloud_blob)
         newCylinder.x = marker.pose.position.x;
         newCylinder.y = marker.pose.position.y;
         newCylinder.conviction = size;
+        
+        newCylinder.name = color_names[best_color_index];
         newCylinder.color = color_names[best_color_index];
         cylinders.push_back(newCylinder);
 

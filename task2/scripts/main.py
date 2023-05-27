@@ -177,6 +177,7 @@ class Main_task:
         for clue in self.clues:
             
             for cylider in self.cylinders:
+                print(cylider[1])
                 if clue.lower()==cylider[1].lower():
                     print("Check the "+ clue + " cylinder")
                     print(cylider[0])
@@ -193,11 +194,11 @@ class Main_task:
                 pos=self.face.approche_position(ring[0])
                 self.add_maeker(pos,ColorRGBA(0, 1, 1, 1))
                 self.face_pub.publish(self.markerArray)
-                if self.move_to_goal(pos):
-                    rospy.loginfo("Reached the goal")
-                    #new_msg=Bool.data(True)
-                    self.park_pub.publish(True)
-                break
+                # if self.move_to_goal(pos):
+                #     rospy.loginfo("Reached the goal")
+                #     #new_msg=Bool.data(True)
+                #     self.park_pub.publish(True)
+                # break
         else :
             print("No green ring found!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
@@ -298,6 +299,15 @@ class Main_task:
                 break
         else:
             color=msg.color
+            if color.r == 1 and color.g == 0 and color.b == 0:
+                color = "red"
+            elif color.r == 0 and color.g == 1 and color.b == 0:
+                color = "green"
+            elif color.r == 0 and color.g == 0 and color.b == 1:
+                color = "blue"
+            elif color.r == 1 and color.g == 1 and color.b == 0:
+                color = "yellow"
+    
             self.cylinders.append([(x,y),color])
             self.cylinders_markers.append(msg)
 
