@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Launch face_localizer_dnn node -->
+  <node pkg="exercise4" type="face_localizer_dnn" name="face_localizer_dnn" output="screen"/>
+
+  <!-- Launch soundplay_node.py node -->
+  <node pkg="sound_play" type="soundplay_node.py" name="soundplay_node" output="screen"/>
+
+  <!-- Launch image_recognition.py node -->
+  <node pkg="task2" type="image_recognition.py" name="image_recognition" output="screen"/>
+
+  <!-- Launch ros_vosk.launch -->
+  <include file="$(find ros_vosk)/launch/ros_vosk.launch"/>
+
+  <!-- Launch voice_recognition.py node -->
+  <node pkg="task2" type="voice_recognition.py" name="voice_recognition" output="screen"/>
+
+  <!-- Launch park_control.py node -->
+  <node pkg="task2" type="park_control.py" name="park_control" output="screen"/>
+</launch>
