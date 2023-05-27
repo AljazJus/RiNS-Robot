@@ -141,6 +141,13 @@ class Main_task:
         self.move_lock=threading.Lock()
 
         
+#TODO: DODAJ barve cilindrom "imena"
+#TODO anredi aproch cilindar 
+#! izbolsaj aproche ringa in cilindar da nebo nikili napak 
+# TODO naredi proces prepoznavanda obrazou 
+# Dokončaj proces cekiranja cilindrou in nato parkiraj v cuzo 
+# ? face se kdaj zaznajo postrani mogoče popravi še to
+
 
     
     def run(self):
@@ -161,6 +168,23 @@ class Main_task:
         
         self.face_sub.unregister()
         self.ring_sub.unregister()
+        self.cylinder_sub.unregister()
+
+        print(self.clues)
+        print(self.criminals)
+
+        #check the clues and visit thoes cilinders
+        for clue in self.clues:
+            
+            for cylider in self.cylinders:
+                if clue.lower()==cylider[1].lower():
+                    print("Check the "+ clue + " cylinder")
+                    print(cylider[0])
+                    pos=self.face.approche_position(cylider[0])
+                    self.add_maeker(pos,ColorRGBA(0, 1, 1, 1))
+                    self.face_pub.publish(self.markerArray)
+                     
+
 
 
         #task 2 koda 
@@ -349,17 +373,19 @@ class Main_task:
                     self.criminals.append([point,rez.color,rez.prize])
                     print("IMAGE DATA: "+rez.color)
                     print("IMAGE DATA: "+str(rez.prize))
+                    self.greet_face("Im on it")
                 else:
+                    self.greet_face("Do you know where he is?")
                     hints=self.voice_recognition_srv(True)
                     print("HITS WE HOT:"+hints.color)
 
-                    for hint in hints.split(","):
+                    for hint in hints.color.split(","):
                         self.clues.append(hint)
+                    self.greet_face("Thanks")
 
             except rospy.ServiceException as e:
                 rospy.loginfo("!!!!!!!!!!!!!!!!!Service call failed: %s"%e)
-            #greets the face "HELO"
-            self.greet_face()
+            
             print("-----Lock END-----")
 
               
@@ -429,12 +455,12 @@ class Main_task:
         self.markerArray.markers.append(marker)
         self.i=self.i+1
 
-    def greet_face(self):
+    def greet_face(self,text="Hello"):
         """greets the face with a voice"""
         rospy.loginfo("Greeting face")
         
         voice = 'voice_kal_diphone'
-        self.soundhandle.say('Hello', voice)
+        self.soundhandle.say(text, voice)
 
     def add_arrow(self,point,color):
         """adds an arrow to the point"""
