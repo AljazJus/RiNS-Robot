@@ -60,13 +60,13 @@ class cylinder_inspector():
         # old JointTrajectoryPoint(positions=[0,0.1,1,0.3]
         self.right = JointTrajectory()
         self.right.joint_names = ["arm_shoulder_pan_joint", "arm_shoulder_lift_joint", "arm_elbow_flex_joint", "arm_wrist_flex_joint"]
-        self.right.points = [JointTrajectoryPoint(positions=[-2.5,-0.2,0.4,0.8],
-                                                    time_from_start = rospy.Duration(4))]
+        self.right.points = [JointTrajectoryPoint(positions=[-1,-0.4,0.4,0.8],
+                                                    time_from_start = rospy.Duration(2))]
         
         self.left = JointTrajectory()
         self.left.joint_names = ["arm_shoulder_pan_joint", "arm_shoulder_lift_joint", "arm_elbow_flex_joint", "arm_wrist_flex_joint"]
-        self.left.points = [JointTrajectoryPoint(positions=[2.5,-0.2,0.4,0.8],
-                                                    time_from_start = rospy.Duration(6))]
+        self.left.points = [JointTrajectoryPoint(positions=[1,-0.4,0.4,0.8],
+                                                    time_from_start = rospy.Duration(4))]
         
 
         # An object we use for converting images between ROS format and OpenCV format
@@ -99,6 +99,8 @@ class cylinder_inspector():
         # Object we use for transforming between coordinate frames
         self.tf_buf = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buf)
+        
+        self.cmd_vel_pub = rospy.Publisher('/cmd_vel_mux/input/teleop', Twist, queue_size=100)
 
         rospy.loginfo("Cylinder inspector initialized")
 
@@ -116,25 +118,6 @@ class cylinder_inspector():
     def inspect_callback(self, msg):
         # Subscribe to the image and/or depth topic
         
-        try:
-            img = rospy.wait_for_message("/arm_camera/rgb/image_raw", Image)
-            print("Got a new image!")
-        except Exception as e:
-            print(e)
-            return 0
-        
-        try:
-            cv_image = self.bridge.imgmsg_to_cv2(img, "bgr8")
-        except CvBridgeError as e:
-            print(e)
-
-
-        self.dims = cv_image.shape
-
-        # Tranform image to gayscale and blur
-        gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
-        gray = cv2.medianBlur(gray, 5)
-
         val = 0
 
         
@@ -145,6 +128,104 @@ class cylinder_inspector():
         while(self.turns_completed < 2):
             result = rospy.wait_for_message('/turtlebot_arm/arm_controller/state', JointTrajectoryControllerState)
             actual = result.actual.positions
+            try:
+                img = rospy.wait_for_message("/arm_camera/rgb/image_raw", Image)
+                print("Got a new image!")
+            except Exception as e:
+                print(e)
+                return 0
+            
+            try:
+                cv_image = self.bridge.imgmsg_to_cv2(img, "bgr8")
+            except CvBridgeError as e:
+                print(e)
+
+            try:
+                depth_img_msg = rospy.wait_for_message('/arm_camera/depth/image_raw', Image)
+
+            except Exception as e:
+                print(e)
+
+
+            self.dims = cv_image.shape
+
+            # Tranform image to gayscale and blur
+            gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
+            gray = cv2.medianBlur(gray, 5)
+            
+            circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1, 20, param1=50, param2=30, minRadius=0, maxRadius=0)
+            if circles is not None:
+                candidates = []
+                circles = np.round(circles[0, :]).astype("int")
+        
+                # Use K-means clustering to group circles based on their centers
+                kmeans = KMeans(n_clusters=1).fit(circles[:, :2])
+                center = np.round(kmeans.cluster_centers_).astype("int")[0]
+                radius = np.round(np.mean(circles[:, 2])).astype("int")
+                
+                circles = [(center[0], center[1], radius)]
+                for circle in circles:
+                    # Get circle center and radius
+                    x, y, r = circle
+                    # Calculate bounding box coordinates
+                    x1 = int(x - r)
+                    x2 = int(x + r)
+                    y1 = int(y - r)
+                    y2 = int(y + r)
+
+
+                    depth_img = self.bridge.imgmsg_to_cv2(depth_img_msg, desired_encoding='passthrough')
+                    if depth_img is not None:
+                        depth_img_window = depth_img[y1:y2, x1:x2]
+
+                    depth_img_window = depth_img[y1:y2, x1:x2]
+                    
+                    # Calculate mean depth of cropped depth image
+                    
+                    depth_mean = np.nanmean(depth_img_window)
+                    if(np.isnan(depth_mean)):
+                        continue
+
+                    # Crop color image based on bounding box coordinates
+                    img_window_color = cv_image[y1:y2, x1:x2]
+
+                    # Compute the RGB color of the cropped color image
+                    c = np.mean(img_window_color, axis=(0, 1)) / 255
+
+                    # Save candidate
+                    candidates.append((circle, depth_mean, c))
+                    
+                print("Processing is done! found", len(candidates), "candidates for rings")
+                if len(candidates) > 0:
+                    print("NO CANIDATES FOUND")
+                    
+                for c in candidates:
+                    circle = c[0]
+                    depth_mean = c[1]
+                    c = c[2]
+                    rospy.sleep(1)
+                    # the center of the circle
+                    x, y = circle[:2]
+
+                    color_name = self.nearest_neighbour(c)
+                    
+                    cv2.imshow("Detected circles", cv2.circle(cv_image, (int(x), int(y)), int(r), (0, 255, 0), 2))
+                    cv2.waitKey(0)
+                    cv2.destroyAllWindows() 
+                    
+                    # self.stop = JointTrajectory()
+                    # self.stop.joint_names = ["arm_shoulder_pan_joint", "arm_shoulder_lift_joint", "arm_elbow_flex_joint", "arm_wrist_flex_joint"]
+                    # self.stop.points = [JointTrajectoryPoint(positions=[self.actual[0],self.actual[1],self.actual[2],self.actual[3]],
+                    #                                             time_from_start = rospy.Duration(1))]
+                    
+                    # #if abs(self.actual[0] - self.stop.points[0].positions[0]) < 0.05 and abs(self.actual[1] - self.stop.points[0].positions[1]) < 0.05 and abs(self.actual[2] - self.stop.points[0].positions[2]) < 0.05 and abs(self.actual[3] - self.stop.points[0].positions[3]) < 0.5:
+                    # self.arm_movement_pub.publish(self.stop)
+                    # rospy.sleep(2)
+                    self.get_pose((x, y), depth_mean, ColorRGBA(c[0], c[1], c[2], 1), color_name)
+                    
+                    self.arm_movement_pub.publish(self.extend)
+                    self.turns_completed = 2
+                    break
             if abs(actual[0] - extend[0]) < 0.05 and abs(actual[1] - extend[1]) < 0.05 and abs(actual[2] - extend[2]) < 0.05 and abs(actual[3] - extend[3]) < 0.5:
                 self.arm_movement_pub.publish(self.right)
                 rospy.loginfo('Right-ed arm!')
@@ -159,6 +240,26 @@ class cylinder_inspector():
                 self.turns_completed += 1
         else:
             self.arm_movement_pub.publish(self.retract)
+            
+        self.turns_completed = 0
+        while self.turns_completed < 2:
+            result = rospy.wait_for_message('/turtlebot_arm/arm_controller/state', JointTrajectoryControllerState)
+            actual = result.actual.positions
+            
+            if abs(actual[0] - extend[0]) < 0.05 and abs(actual[1] - extend[1]) < 0.05 and abs(actual[2] - extend[2]) < 0.05 and abs(actual[3] - extend[3]) < 0.5:
+                self.arm_movement_pub.publish(self.right)
+                rospy.loginfo('Right-ed arm!')
+                print("Now should turn left")
+            elif abs(actual[0] - right[0]) < 0.05 and abs(actual[1] - right[1]) < 0.05 and abs(actual[2] - right[2]) < 0.05 and abs(actual[3] - right[3]) < 0.5:
+                self.arm_movement_pub.publish(self.left)
+                rospy.loginfo('Left-ed arm!')
+            elif abs(actual[0] - left[0]) < 0.05 and abs(actual[1] - left[1]) < 0.05 and abs(actual[2] - left[2]) < 0.05 and abs(actual[3] - left[3]) < 0.5:
+                self.arm_movement_pub.publish(self.extend)
+                rospy.loginfo('Extend-ed arm!')
+                rospy.sleep(1)
+                self.turns_completed += 1
+        
+        self.arm_movement_pub.publish(self.retract)
 
         return val
         
@@ -182,10 +283,118 @@ class cylinder_inspector():
                 print('Unknown instruction:', self.user_command)
                 return(-1)
             self.send_command = False
+            
+    def get_pose(self,e,dist, marker_color, color_name):
+        rospy.loginfo("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        rospy.loginfo("ENTERED GET POSE FUNCTION WITH DISTANCE OF %f", dist)
+        rospy.loginfo("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        # Calculate the position of the detected ellipse
+
+        if dist < 0.4:
+            return
+        
+        k_f = 525 # kinect focal length in pixels
+
+        elipse_x = self.dims[1] / 2 - e[0]
+        elipse_y = self.dims[0] / 2 - e[1]
+
+        angle_to_target_x = np.arctan2(elipse_x,k_f)
+        angle_to_target_y = np.arctan2(-elipse_y,k_f)
+
+        # Get the angles in the base_link relative coordinate system
+        x,y,z = dist*np.cos(angle_to_target_x), dist*np.sin(angle_to_target_x), dist * np.sin(angle_to_target_y)
+
+        # Define a stamped message for transformation - in the "camera rgb frame"
+        point_s = PointStamped()
+        point_s.point.x = -y
+        point_s.point.y = z
+        point_s.point.z = x
+        point_s.header.frame_id = "arm_camera_rgb_optical_frame"
+        point_s.header.stamp = rospy.Time(0)
+
+        # Get the point in the "map" coordinate system
+        point_world = self.tf_buf.transform(point_s, "map")
+
+        world_point = (point_world.point.x, point_world.point.y, point_world.point.z)
+        
+        if math.isnan(world_point[0]) or math.isnan(world_point[1] or math.isnan(world_point[2])):
+            return
+        
+        t = self.tf_buf.lookup_transform("map", "base_link", rospy.Time(0))
+        point_base = PoseStamped()
+        point_base.pose.position.x = 0
+        point_base.pose.position.y = 0
+        point_base.pose.position.z = 0
+        point_base.pose.orientation = t.transform.rotation
+        point_base.header.frame_id = "base_link"
+        point_base.header.stamp = rospy.Time(0)
+        point_base = self.tf_buf.transform(point_base, "map", rospy.Duration(1))
+        
+        # Extract current yaw angle of the robot from quaternion
+        quaternion = (t.transform.rotation.x, t.transform.rotation.y, t.transform.rotation.z, t.transform.rotation.w)
+        euler = euler_from_quaternion(quaternion)
+        self.current_yaw = euler[2]
+        
+        # Get coordinate of base in map frame
+        rospy.loginfo("this is the point in the map frame: " + str(point_world))
+        
+        self.move(world_point, point_base)
+
         
 
-            
+    def move(self, point_world, point_base):
         
+        #calculate euclidean distance from point_world to point_base
+        dist = np.sqrt((point_world[0] - point_base.pose.position.x) ** 2 + (point_world[1] - point_base.pose.position.y) ** 2 + (point_world[2] - point_base.pose.position.z) ** 2)
+        rospy.loginfo("dist: " + str(dist))
+        
+        #calculate angle to target
+        angle_to_target = np.arctan2(point_world[1] - point_base.pose.position.y, point_world[0] - point_base.pose.position.x)
+        rospy.loginfo("angle_to_target: " + str(angle_to_target))
+        
+        #calculate angle to base
+        angle_to_base = np.arctan2(point_base.pose.position.y - point_world[1], point_base.pose.position.x - point_world[0])
+        rospy.loginfo("angle_to_base: " + str(angle_to_base))
+        
+        #calculate angle difference
+        #angle_diff = angle_to_target - angle_to_base
+        angle_diff = angle_to_target - self.current_yaw
+        rospy.loginfo("angle_diff: " + str(angle_diff))
+        
+        if angle_diff > np.pi:
+            angle_diff -= 2 * np.pi
+        elif angle_diff < -np.pi:
+            angle_diff += 2 * np.pi
+
+        angle_diff_degrees = angle_diff * 180 / np.pi
+
+        Kp = 1.5
+        angular_velocity = Kp * angle_diff
+
+        #publish Twist message to rotate point_base to point_world
+        twist = Twist()
+        twist.linear.x = 0
+        twist.linear.y = 0
+        twist.linear.z = 0
+        twist.angular.x = 0
+        twist.angular.y = 0
+        twist.angular.z = angular_velocity
+
+        self.cmd_vel_pub.publish(twist)
+        rospy.sleep(2)
+        
+        twist = Twist()
+        twist.linear.x = dist/2
+        twist.linear.y = 0
+        twist.linear.z = 0
+        twist.angular.x = 0
+        twist.angular.y = 0
+        twist.angular.z = 0
+        if(dist < 0.3):
+            twist.linear.x = 0
+        self.cmd_vel_pub.publish(twist)
+        rospy.sleep(1)
+
 def main():
 
     am = cylinder_inspector()
