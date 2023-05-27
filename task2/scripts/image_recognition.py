@@ -50,6 +50,7 @@ class ImageRecognitionServer:
         except CvBridgeError as e:
             print(e)
         
+        print("Image received")
         response = ImageRecognitionResponse()
 
         # Load the face detection classifier
@@ -96,17 +97,21 @@ class ImageRecognitionServer:
         # Recognize the text using Tesseract
         number_text = pytesseract.image_to_string(thresh)
         # print(number_text)
-        # cv2.imshow('Poster', thresh)
-        # cv2.waitKey(0)
+        #cv2.imshow('Poster', thresh)
+        #cv2.waitKey(0)
         # Filter the recognized text to extract words and digits
 
         digits = ""
         color = ""
+        
         for s in number_text.split():
             if s.isdigit():
                 digits += s
-            elif s.lower() in ["green", "red", "yellow", "blue"]:
+            elif s.lower() in ["green", "red", "yellow", "blue","black"]:
                 color = s.lower()
+            else:
+                print("Unknown word: " + s)
+            
             
             # print("Unknown word: " + s)
 

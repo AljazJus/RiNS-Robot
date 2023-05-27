@@ -151,9 +151,9 @@ class Main_task:
                 if self.move_to_goal(self.goals[self.nextGoal]):
                     rospy.loginfo("Reached the goal")
                 else :
-                    rospy.loginfo("Failed to reach the goal")
-                self.nextGoal=self.nextGoal+1
+                    rospy.loginfo("Failed to reach the goal")               
                 with self.move_lock:
+                    self.nextGoal=self.nextGoal+1
                     pass
 
     
@@ -330,8 +330,10 @@ class Main_task:
         rospy.loginfo(point)
         print(f"Lock status: {self.move_lock.locked()}")
         #print(f"Lock info: {self.move_lock.}")
-               
+        #if True:
         with self.move_lock:
+            print("-----DEDLOCK START----")
+
             #self.newGoals.append(point)
             #appernd to the list of new goals
             self.goals.insert(self.nextGoal,point)
@@ -342,6 +344,7 @@ class Main_task:
             print("DATA FORM A FACE--------------------")
             try:
                 rez=self.image_recognition_srv(True)
+                print("IMAGE DATA: "+str(rez.wonted))
                 if rez.wonted:
                     self.criminals.append([point,rez.color,rez.prize])
                     print("IMAGE DATA: "+rez.color)
@@ -357,6 +360,7 @@ class Main_task:
                 rospy.loginfo("!!!!!!!!!!!!!!!!!Service call failed: %s"%e)
             #greets the face "HELO"
             self.greet_face()
+            print("-----Lock END-----")
 
               
     def move_to_goal(self ,point):
