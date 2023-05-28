@@ -2,8 +2,8 @@ import rospy
 import numpy as np
 from move_base_msgs.msg import MoveBaseAction,MoveBaseGoal
 import actionlib
-from task3.srv import GiveGoal
-from task3.msg import Robot_pose
+from task2.srv import GiveGoal
+from task2.msg import Robot_pose
 
 class Main:
     def __init__(self):

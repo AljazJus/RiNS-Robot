@@ -164,18 +164,16 @@ class Main_task:
                     self.nextGoal=self.nextGoal+1
                     pass
 
-    
-        self.print_final_result()
         
         self.face_sub.unregister()
         self.ring_sub.unregister()
         self.cylinder_sub.unregister()
 
-        print(self.clues)
-        print(self.criminals)
-
         # make sure that there are not repeated clues
+        self.clues = list(set(self.clues))
 
+        self.print_final_result()
+        
         max_prize=-1
         max_index=-1
         for i,criminal in enumerate(self.criminals):
@@ -188,11 +186,6 @@ class Main_task:
             max_index=0
             print("No prison for a criminal found!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! going to green ring")
             self.criminals[max_index][1]="green"
-        
-        #TODO picka the biometricks for the criminal face
-
-
-        self.clues = list(set(self.clues))
         
         found_criminals=False
         #check the clues and visit thoes cilinders
@@ -210,10 +203,12 @@ class Main_task:
                     if self.move_to_goal(pos):
                         rospy.loginfo("Reached the cylinder")
                         #new_msg=Bool.data(True)
+                        #? look at the cylinder
                         self.cylinder_inspect_srv(True)
                         
-                        # add recognition of the face
+                        # recognition of the face
                         face_id=self.face_recognition_srv(True)
+                        
                         if face_id == max_index:
                             print("-------Correct face------")
                             self.criminals[max_index][1]=clue
@@ -224,9 +219,6 @@ class Main_task:
                         #move to the next clue
                         break
                      
-        
-        
-
         for i,ring in enumerate(self.rings):
             if ring[1] == self.criminals[max_index][1].lower():
                 pos=self.face.approche_position(ring[0])
@@ -301,6 +293,16 @@ class Main_task:
         for i,cylinder in enumerate(self.cylinders):
             rospy.loginfo("Found:{} ({}, {}) seen ".format(i, cylinder[0][0], cylinder[0][1]))
         rospy.loginfo("////////////////////cylinders////////////////////////")
+
+        rospy.loginfo("////////////////////criminals////////////////////////")
+        for i,criminal in enumerate(self.criminals):
+            rospy.loginfo("Found:{} ({}, {}) seen prize: {} prison {}".format(i, criminal[0][0], criminal[0][1],criminal[2],criminal[1]))
+        rospy.loginfo("////////////////////criminals////////////////////////")
+
+        rospy.loginfo("////////////////////clues////////////////////////")
+        for i,clue in enumerate(self.clues):
+            rospy.loginfo("Found:{} color {} ".format(i, clue[0]))
+        rospy.loginfo("////////////////////clues////////////////////////")
 
     def ring_handle(self,msg):
         #TODO: read the correct color 
