@@ -270,9 +270,16 @@ class face_handle:
         #calculate line from wall_cord to ob_x,ob_y
         center = np.array([ob_x, ob_y])
         wall = np.array([wall_coord[0], wall_coord[1]])
-        
+
+
         # Calculate the direction vector from center to wall
-        direction = center - wall
+        #!check if the object is ouut of the map
+        print("----------------check point rad"+str(self.chech_if_point_reacheble((ob_x,ob_y))))
+        if self.chech_if_point_reacheble((ob_x,ob_y))==0:
+            direction = center - wall
+        else:
+            direction =  (center - wall )*-1
+            
 
         # Calculate the point that is 0.5 meters away from the wall on the opposite side of the center
         opposite_point = wall + direction/np.linalg.norm(direction)*0.5
@@ -286,6 +293,24 @@ class face_handle:
         
         return point
     
+    def chech_if_point_reacheble(self,mark):
+        """checks if the point is reachable"""
+
+        res = self.map_resolution # map resolution
+        
+        # convert world coordinates to map coordinates
+        x_map = int((mark[0] - self.map_transform.position.x) / res)
+        y_map = int((mark[1] - self.map_transform.position.y) / res)
+
+        # check if point is out of bounds
+        data_val = self.cv_map[y_map, x_map]
+        if data_val == 100:
+            return 1
+        elif data_val == -1:
+            return 2
+        return 0          
+
+
     def find_closest_wall(self, mark, max_radius=0.5):
         res = self.map_resolution # map resolution
         

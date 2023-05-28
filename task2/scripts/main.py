@@ -39,8 +39,9 @@ from tf.transformations import quaternion_from_euler,euler_from_quaternion
 from findFaces import face_handle
  
 from task2.srv import ImageRecognition, ImageRecognitionResponse
-
+from task2.srv import CylinderInspect, CylinderInspectResponse
 from task2.srv import VoiceRecognition, VoiceRecognitionResponse
+
 import threading
 
 
@@ -141,7 +142,6 @@ class Main_task:
         self.move_lock=threading.Lock()
 
         
-#TODO: DODAJ barve cilindrom "imena"
 #TODO anredi aproch cilindar 
 #! izbolsaj aproche ringa in cilindar da nebo nikili napak 
 # TODO naredi proces prepoznavanda obrazou 
@@ -173,38 +173,68 @@ class Main_task:
         print(self.clues)
         print(self.criminals)
 
+        # make sure that there are not repeated clues
+
+        max_prize=-1
+        max_index=-1
+        for i,criminal in enumerate(self.criminals):
+            if criminal[2]>max_prize:
+                if criminal[1] != "":
+                    max_prize=criminal[1]
+                    max_index=i
+
+        if max_index==-1:
+            max_index=0
+            print("No prison for a criminal found!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! going to green ring")
+            self.criminals[max_index][1]="green"
+        
+        #TODO picka the biometricks for the criminal face
+
+        self.clues = list(set(self.clues))
+        
+        found_criminals=False
         #check the clues and visit thoes cilinders
         for clue in self.clues:
-            
+            if found_criminals:
+                break
             for cylider in self.cylinders:
                 print(cylider[1])
                 if clue.lower()==cylider[1].lower():
                     print("Check the "+ clue + " cylinder")
                     print(cylider[0])
                     pos=self.face.approche_position(cylider[0])
-                    self.add_maeker(pos,ColorRGBA(0, 1, 1, 1))
+                    self.add_maeker(pos,ColorRGBA(0, 1, 1, 1),"Clue")
                     self.face_pub.publish(self.markerArray)
+                    if self.move_to_goal(pos):
+                        rospy.loginfo("Reached the goal")
+                        #new_msg=Bool.data(True)
+                        self.cylinder_inspect_srv(True)
+                        #! add recognition of the face
+                        
+                        rospy.sleep(5)
+                        break
                      
+        
+        
 
-
-
-        #task 2 koda 
         for i,ring in enumerate(self.rings):
-            if ring[1] == "green":
+            if ring[1] == self.criminals[max_index][1].lower():
                 pos=self.face.approche_position(ring[0])
                 self.add_maeker(pos,ColorRGBA(0, 1, 1, 1))
                 self.face_pub.publish(self.markerArray)
-                # if self.move_to_goal(pos):
-                #     rospy.loginfo("Reached the goal")
-                #     #new_msg=Bool.data(True)
-                #     self.park_pub.publish(True)
-                # break
+                if self.move_to_goal(pos):
+                    rospy.loginfo("Reached the goal")
+                    #new_msg=Bool.data(True)
+                    self.park_pub.publish(True)
+                break
         else :
             print("No green ring found!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
         #this draws all the markers 
         self.face_pub.publish(self.markerArray)
         rospy.sleep(10)
+
+
 
     def init_pub_sub(self):
 
@@ -240,6 +270,8 @@ class Main_task:
         self.image_recognition_srv = rospy.ServiceProxy('image_recognition', ImageRecognition)
 
         self.voice_recognition_srv = rospy.ServiceProxy('voice_initializer', VoiceRecognition)
+
+        self.cylinder_inspect_srv = rospy.ServiceProxy('initiate_inspect', CylinderInspect)
 
     def print_final_result(self):
         #print out the list of faces detected

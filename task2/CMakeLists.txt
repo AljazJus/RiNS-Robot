@@ -57,6 +57,8 @@ add_service_files(
   FILES
   ImageRecognition.srv
   VoiceRecognition.srv
+  CylinderInspect.srv
+  FaceRecognition.srv
 )
 
 generate_messages(
