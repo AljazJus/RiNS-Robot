@@ -27,9 +27,9 @@ class FaceRecognizer:
     def handle_face_recognition(self, req):
         if req.id:
             # Identify a face
-            faces = self.detect_faces()
+            faces = self.detect_id()
             if len(faces) == 0:
-                return FaceRecognitionResponse(-1)
+                return FaceRecognitionResponse(-3)
             label, confidence = self.recognizer.predict(faces[0])
             print("Label:", label, "Confidence:", confidence)
             if confidence > 100:
@@ -39,7 +39,7 @@ class FaceRecognizer:
             # Memorize a face
             faces = self.detect_faces()
             if len(faces) == 0:
-                return FaceRecognitionResponse(-1)
+                return FaceRecognitionResponse(-3)
             self.faces.append(faces[0])
             self.labels.append(len(self.faces)-1)
             self.recognizer.update(self.faces, np.array(self.labels))
@@ -50,6 +50,29 @@ class FaceRecognizer:
 
         try:
             imge = rospy.wait_for_message("/camera/rgb/image_raw", Image)
+        except Exception as e:
+            print(e)
+            return 0
+        cv_img = None
+        try:
+            cv_img = self.bridge.imgmsg_to_cv2(imge, "bgr8")
+        except CvBridgeError as e:
+            print(e)
+        
+        img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2GRAY)
+
+        face_cascade = cv2.CascadeClassifier(self.script_dir + '/haarcascade_frontalface_default.xml')
+        if face_cascade.empty():
+            print("Error: Failed to load face detection classifier")
+            raise Exception("Failed to load face detection classifier")
+
+        faces = face_cascade.detectMultiScale(img, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+        return [img[y:y+h, x:x+w] for (x, y, w, h) in faces]
+    
+    def detect_id(self):
+
+        try:
+            imge = rospy.wait_for_message("/arm_camera/rgb/image_raw", Image)
         except Exception as e:
             print(e)
             return 0

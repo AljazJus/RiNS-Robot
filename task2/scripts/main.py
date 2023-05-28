@@ -41,6 +41,7 @@ from findFaces import face_handle
 from task2.srv import ImageRecognition, ImageRecognitionResponse
 from task2.srv import CylinderInspect, CylinderInspectResponse
 from task2.srv import VoiceRecognition, VoiceRecognitionResponse
+from task2.srv import FaceRecognition, FaceRecognitionResponse
 
 import threading
 
@@ -190,6 +191,7 @@ class Main_task:
         
         #TODO picka the biometricks for the criminal face
 
+
         self.clues = list(set(self.clues))
         
         found_criminals=False
@@ -206,12 +208,20 @@ class Main_task:
                     self.add_maeker(pos,ColorRGBA(0, 1, 1, 1),"Clue")
                     self.face_pub.publish(self.markerArray)
                     if self.move_to_goal(pos):
-                        rospy.loginfo("Reached the goal")
+                        rospy.loginfo("Reached the cylinder")
                         #new_msg=Bool.data(True)
                         self.cylinder_inspect_srv(True)
-                        #! add recognition of the face
                         
-                        rospy.sleep(5)
+                        # add recognition of the face
+                        face_id=self.face_recognition_srv(True)
+                        if face_id == max_index:
+                            print("-------Correct face------")
+                            self.criminals[max_index][1]=clue
+                            found_criminals=True
+                        else:
+                            print("-----Wrong face------")
+
+                        #move to the next clue
                         break
                      
         
@@ -272,6 +282,8 @@ class Main_task:
         self.voice_recognition_srv = rospy.ServiceProxy('voice_initializer', VoiceRecognition)
 
         self.cylinder_inspect_srv = rospy.ServiceProxy('initiate_inspect', CylinderInspect)
+
+        self.face_recognition_srv = rospy.ServiceProxy('face_recognition', FaceRecognition)
 
     def print_final_result(self):
         #print out the list of faces detected
@@ -413,6 +425,14 @@ class Main_task:
                 print("IMAGE DATA: "+str(rez.wonted))
                 if rez.wonted:
                     self.criminals.append([point,rez.color,rez.prize])
+                    # memorise the face
+                    rez=self.face_recognition_srv(False)
+                    if rez.face>-1:
+                        print("FACE MEMORISED: "+str(rez.face))
+                    else:
+                        print("FACE NOT MEMORISED RETRY: "+str(rez.face))
+                        self.face_recognition_srv(False)
+                    
                     print("IMAGE DATA: "+rez.color)
                     print("IMAGE DATA: "+str(rez.prize))
                     self.greet_face("Im on it")
