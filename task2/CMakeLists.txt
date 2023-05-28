@@ -51,6 +51,8 @@ add_message_files(DIRECTORY msg
   FILES
   Cylinder.msg
   Ring.msg
+  Robot_pose.msg
+  Points_visited.msg
 )
 
 add_service_files(
@@ -59,6 +61,7 @@ add_service_files(
   VoiceRecognition.srv
   CylinderInspect.srv
   FaceRecognition.srv
+  GiveGoal.srv
 )
 
 generate_messages(
@@ -91,3 +94,7 @@ catkin_package(
 add_executable (cylinder_segmentation_task2 src/cylinder_segmentation.cpp)
 
 catkin_install_python(PROGRAMS scripts/main.py scripts/detect_rings.py scripts/park_control.py scripts/image_recognition.py scripts/voice_recognition.py scripts/cylinder_inspect.py scripts/face_id.py DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+catkin_install_python(PROGRAMS scripts/autonomous_navigation.py DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+catkin_install_python(PROGRAMS scripts/autonomous_navigation_GUI.py DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+catkin_install_python(PROGRAMS scripts/autonomous_navigation_service.py DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+catkin_install_python(PROGRAMS scripts/main2.py DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
