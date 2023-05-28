@@ -20,30 +20,52 @@ class FaceRecognizer:
         self.recognizer = cv2.face.LBPHFaceRecognizer_create()
         self.service = rospy.Service('face_recognition', FaceRecognition, self.handle_face_recognition)
 
+        script_path = os.path.abspath(__file__)
+        self.script_dir = os.path.dirname(script_path)
+        print("The script is located at:", self.script_dir)
+
     def handle_face_recognition(self, req):
         if req.id:
             # Identify a face
-            img = self.bridge.imgmsg_to_cv2(req.image, "bgr8")
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            faces = self.detect_faces(gray)
+            faces = self.detect_faces()
             if len(faces) == 0:
                 return FaceRecognitionResponse(-1)
             label, confidence = self.recognizer.predict(faces[0])
+            print("Label:", label, "Confidence:", confidence)
+            if confidence > 100:
+                return FaceRecognitionResponse(-1)
             return FaceRecognitionResponse(label)
         else:
             # Memorize a face
-            img = self.bridge.imgmsg_to_cv2(req.image, "bgr8")
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            faces = self.detect_faces(gray)
+            faces = self.detect_faces()
             if len(faces) == 0:
                 return FaceRecognitionResponse(-1)
             self.faces.append(faces[0])
-            self.labels.append(req.label)
+            self.labels.append(len(self.faces)-1)
             self.recognizer.update(self.faces, np.array(self.labels))
-            return FaceRecognitionResponse(0)
+            print("Face memorized"+str(len(self.faces)-1))
+            return FaceRecognitionResponse(-2)
 
-    def detect_faces(self, img):
-        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    def detect_faces(self):
+
+        try:
+            imge = rospy.wait_for_message("/camera/rgb/image_raw", Image)
+        except Exception as e:
+            print(e)
+            return 0
+        cv_img = None
+        try:
+            cv_img = self.bridge.imgmsg_to_cv2(imge, "bgr8")
+        except CvBridgeError as e:
+            print(e)
+        
+        img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2GRAY)
+
+        face_cascade = cv2.CascadeClassifier(self.script_dir + '/haarcascade_frontalface_default.xml')
+        if face_cascade.empty():
+            print("Error: Failed to load face detection classifier")
+            raise Exception("Failed to load face detection classifier")
+
         faces = face_cascade.detectMultiScale(img, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
         return [img[y:y+h, x:x+w] for (x, y, w, h) in faces]
 

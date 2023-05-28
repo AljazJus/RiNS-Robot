@@ -13,7 +13,6 @@ import pytesseract
 from PIL import Image as PILImage
 
 import cv2.aruco as aruco
-import sys
 
 import os
 
