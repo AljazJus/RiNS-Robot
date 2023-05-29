@@ -93,47 +93,47 @@ class Main_task:
  
             (-1.0149805545806885, 1.5947914123535156, 0.8971746531646282, 0.44167594650255637),
 
-        #     (-1.0149805545806885, 1.5947914123535156, 0.8971746531646282, 0.44167594650255637),
+            (-1.0149805545806885, 1.5947914123535156, 0.8971746531646282, 0.44167594650255637),
 
-        #     (-1.0149805545806885, 1.5947914123535156, 0.8971746531646282, 0.44167594650255637),
+            (-1.0149805545806885, 1.5947914123535156, 0.8971746531646282, 0.44167594650255637),
 
-        #     (-1.3768168687820435, 1.9692890644073486, 0.43751997472804754, 0.899208691969761),
+            (-1.3768168687820435, 1.9692890644073486, 0.43751997472804754, 0.899208691969761),
             
-        #     (-1.321938157081604, 1.6762330532073975, -0.6766015185294195, 0.7363493634978464),
+            (-1.321938157081604, 1.6762330532073975, -0.6766015185294195, 0.7363493634978464),
 
-        #     (0.15961682796478271, 1.9827066659927368, 0.6905718388806782, 0.7232638075729759),
+            (0.15961682796478271, 1.9827066659927368, 0.6905718388806782, 0.7232638075729759),
 
-        #     (-0.08920907974243164, 1.7677351236343384, 0.492132089979682, 0.8705205373868156),
+            (-0.08920907974243164, 1.7677351236343384, 0.492132089979682, 0.8705205373868156),
 
-        #    (0.542794942855835, 2.020752429962158, 0.9531778262148796, 0.3024103695515035),
+           (0.542794942855835, 2.020752429962158, 0.9531778262148796, 0.3024103695515035),
 
-        #   (1.3778777122497559, 1.950562596321106, -0.007862214953451577, 0.9999690923103702),
-
-
-        #    (1.1759477853775024, 1.1275452375411987, -0.9490859112438822, 0.3150173536146377),
-
-        #    (0.9991668462753296, 1.124552607536316, -0.1563922882776459, 0.9876950198149638),
-
-        #    (2.389066696166992, 1.728233814239502, 0.009051963931573504, 0.9999590301352258),
+          (1.3778777122497559, 1.950562596321106, -0.007862214953451577, 0.9999690923103702),
 
 
-        #    (2.552042007446289, 1.044256329536438, -0.19242611521582118, 0.9813114644102287),
+           (1.1759477853775024, 1.1275452375411987, -0.9490859112438822, 0.3150173536146377),
 
-        #    (2.5799717903137207, 0.9684247970581055, 0.9990790240782923, 0.042908083699542326),
+           (0.9991668462753296, 1.124552607536316, -0.1563922882776459, 0.9876950198149638),
 
-        #    (2.316070079803467, -0.1127772331237793, 0.9993204986943334, 0.03685838967329986),
+           (2.389066696166992, 1.728233814239502, 0.009051963931573504, 0.9999590301352258),
 
-        #    (1.2136905193328857, -0.048691511154174805, -0.7330022047926338, 0.6802262621871769),
 
-        #    (3.272860288619995, -0.6422595977783203, -0.6831572555220102, 0.7302712949497843),
+           (2.552042007446289, 1.044256329536438, -0.19242611521582118, 0.9813114644102287),
 
-        #    (3.1212475299835205, -1.2015891075134277, 0.5413560883226987, 0.8407934262563822),
+           (2.5799717903137207, 0.9684247970581055, 0.9990790240782923, 0.042908083699542326),
 
-        #    (1.8883428573608398, -1.605823040008545, -0.6733358179132538, 0.7393367813892999),
+           (2.316070079803467, -0.1127772331237793, 0.9993204986943334, 0.03685838967329986),
 
-        #    (2.0061328411102295, -1.6888556480407715, -0.39298204849993856, 0.9195461432450206),
-        #    (1.192490816116333, -1.9960026741027832, 0.7276675434200587, 0.6859299864075173),
-        #    (0.027308344841003418, -1.0728521347045898, -0.8391159544804025, 0.5439525851914329),
+           (1.2136905193328857, -0.048691511154174805, -0.7330022047926338, 0.6802262621871769),
+
+           (3.272860288619995, -0.6422595977783203, -0.6831572555220102, 0.7302712949497843),
+
+           (3.1212475299835205, -1.2015891075134277, 0.5413560883226987, 0.8407934262563822),
+
+           (1.8883428573608398, -1.605823040008545, -0.6733358179132538, 0.7393367813892999),
+
+           (2.0061328411102295, -1.6888556480407715, -0.39298204849993856, 0.9195461432450206),
+           (1.192490816116333, -1.9960026741027832, 0.7276675434200587, 0.6859299864075173),
+           (0.027308344841003418, -1.0728521347045898, -0.8391159544804025, 0.5439525851914329),
         ]
 
         #variable for the next goal
@@ -177,7 +177,7 @@ class Main_task:
         max_prize=-1
         max_index=-1
         for i,criminal in enumerate(self.criminals):
-            if criminal[2]>max_prize:
+            if int(criminal[2])>int(max_prize):
                 if criminal[1] != "":
                     max_prize=criminal[1]
                     max_index=i
@@ -205,20 +205,23 @@ class Main_task:
                         #new_msg=Bool.data(True)
                         #? look at the cylinder
                         self.cylinder_inspect_srv(True)
-                        
+                        self.greet_face("FBI, open up ")
                         # recognition of the face
                         face_id=self.face_recognition_srv(True)
-                        
-                        if face_id == max_index:
+                        print("Face id is "+str(face_id.face))
+                        if face_id.face == max_index:
                             print("-------Correct face------")
                             self.criminals[max_index][1]=clue
                             found_criminals=True
+                            self.greet_face("Gotcha Bitch!!!")
                         else:
                             print("-----Wrong face------")
+                            self.greet_face("Sory wrong person")
 
                         #move to the next clue
                         break
-                     
+
+
         for i,ring in enumerate(self.rings):
             if ring[1] == self.criminals[max_index][1].lower():
                 pos=self.face.approche_position(ring[0])
@@ -301,7 +304,7 @@ class Main_task:
 
         rospy.loginfo("////////////////////clues////////////////////////")
         for i,clue in enumerate(self.clues):
-            rospy.loginfo("Found:{} color {} ".format(i, clue[0]))
+            rospy.loginfo("Found:{} color {} ".format(i, clue))
         rospy.loginfo("////////////////////clues////////////////////////")
 
     def ring_handle(self,msg):
@@ -384,7 +387,7 @@ class Main_task:
         #imporatant fot the markers to disapear
         self.i=0
 
-        rospy.loginfo("FACEPRIT")
+        #rospy.loginfo("FACEPRIT")
         #this puts all the face marekers to mareker array 
         for face in self.faces:
             self.add_maeker(face[1],ColorRGBA(0, 1, 1, 1),face[0])
@@ -406,8 +409,8 @@ class Main_task:
         This function moves the robot to the point that it calculates infron of the face
         """
 
-        rospy.loginfo("NEW POINT FROM FACE RADIUS")
-        rospy.loginfo(point)
+        #rospy.loginfo("NEW POINT FROM FACE RADIUS")
+        #rospy.loginfo(point)
         print(f"Lock status: {self.move_lock.locked()}")
         #print(f"Lock info: {self.move_lock.}")
         #if True:
@@ -421,19 +424,19 @@ class Main_task:
 
             self.move_to_goal(point)
 
-            print("DATA FORM A FACE--------------------")
+            #print("DATA FORM A FACE--------------------")
             try:
                 rez=self.image_recognition_srv(True)
                 print("IMAGE DATA: "+str(rez.wonted))
                 if rez.wonted:
                     self.criminals.append([point,rez.color,rez.prize])
                     # memorise the face
-                    rez=self.face_recognition_srv(False)
-                    if rez.face>-1:
-                        print("FACE MEMORISED: "+str(rez.face))
+                    face_id=self.face_recognition_srv(False)
+                    if face_id.face>-1:
+                        print("FACE MEMORISED: "+str(face_id.face))
                     else:
-                        print("FACE NOT MEMORISED RETRY: "+str(rez.face))
-                        self.face_recognition_srv(False)
+                        print("FACE NOT MEMORISED RETRY: "+str(face_id.face))
+                        #self.face_recognition_srv(False)
                     
                     print("IMAGE DATA: "+rez.color)
                     print("IMAGE DATA: "+str(rez.prize))
@@ -451,8 +454,7 @@ class Main_task:
                 rospy.loginfo("!!!!!!!!!!!!!!!!!Service call failed: %s"%e)
             
             print("-----Lock END-----")
-
-              
+           
     def move_to_goal(self ,point):
             """this function moves the robot to the point
             It calculates the path and moves to the goal"""
@@ -460,7 +462,7 @@ class Main_task:
             x,y,=point[0],point[1]
             #service movae base make plan 
             
-            rospy.loginfo("Moving to ({}, {})".format(point[0], point[1]))
+            #rospy.loginfo("Moving to ({}, {})".format(point[0], point[1]))
 
             client = self.move_clienr
             client.wait_for_server()

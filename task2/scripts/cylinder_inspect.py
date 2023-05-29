@@ -53,7 +53,7 @@ class cylinder_inspector():
 
         self.extend = JointTrajectory()
         self.extend.joint_names = ["arm_shoulder_pan_joint", "arm_shoulder_lift_joint", "arm_elbow_flex_joint", "arm_wrist_flex_joint"]
-        self.extend.points = [JointTrajectoryPoint(positions=[0,0.2,0.4,0.3],
+        self.extend.points = [JointTrajectoryPoint(positions=[0,0.0,0.0,0.7],
                                                     time_from_start = rospy.Duration(1))]
         
         # new JointTrajectoryPoint(positions=[0,1,0.5,0.0],
@@ -218,9 +218,9 @@ class cylinder_inspector():
                     
                     color_name = self.nearest_neighbour(c)
                     
-                    cv2.imshow("Detected circles", cv2.circle(cv_image, (int(x), int(y)), int(r), (0, 255, 0), 2))
-                    cv2.waitKey(0)
-                    cv2.destroyAllWindows() 
+                    #cv2.imshow("Detected circles", cv2.circle(cv_image, (int(x), int(y)), int(r), (0, 255, 0), 2))
+                    #cv2.waitKey(0)
+                    #cv2.destroyAllWindows() 
                     
                     # self.stop = JointTrajectory()
                     # self.stop.joint_names = ["arm_shoulder_pan_joint", "arm_shoulder_lift_joint", "arm_elbow_flex_joint", "arm_wrist_flex_joint"]

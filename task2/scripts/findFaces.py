@@ -105,7 +105,7 @@ class face_handle:
                 #check if the face is close to the face in the list
                 if(abs(face_x-face[1][0])<self.rad and abs(face_y-face[1][1])<self.rad):
                     if( self.simila_angle(face[3],pred_faco)):
-                        rospy.loginfo("Edit a face"+face[0])
+                        #rospy.loginfo("Edit a face"+face[0])
                         face[2]=face[2]+1
                         #this ajusts the position of the face in the list
                         #it does it 5 times to make sure it is in the right place
@@ -140,8 +140,8 @@ class face_handle:
             if self.check_point_rad(p[0],p[1]):
                 tmp.append(p)
 
-        rospy.loginfo("FACE ORIENTATION")
-        rospy.loginfo(tmp)
+        #rospy.loginfo("FACE ORIENTATION")
+        #rospy.loginfo(tmp)
         #calculate the distance from the robot to the point  
         for i in range(len(tmp)):
             distance=math.sqrt((tmp[i][0] - curPos[0])**2 + (tmp[i][1] - curPos[1])**2)

@@ -31,15 +31,21 @@ class FaceRecognizer:
             if len(faces) == 0:
                 return FaceRecognitionResponse(-3)
             label, confidence = self.recognizer.predict(faces[0])
+            cv2.imshow("Face", faces[0])
+            cv2.waitKey(0)
             print("Label:", label, "Confidence:", confidence)
             if confidence > 100:
+                print("Unknown face")
                 return FaceRecognitionResponse(-1)
+            print("Face identified as", label)
             return FaceRecognitionResponse(label)
         else:
             # Memorize a face
             faces = self.detect_faces()
             if len(faces) == 0:
                 return FaceRecognitionResponse(-3)
+            cv2.imshow("Face", faces[0])
+            cv2.waitKey(0)
             self.faces.append(faces[0])
             self.labels.append(len(self.faces)-1)
             self.recognizer.update(self.faces, np.array(self.labels))
@@ -71,6 +77,7 @@ class FaceRecognizer:
     
     def detect_id(self):
 
+        
         try:
             imge = rospy.wait_for_message("/arm_camera/rgb/image_raw", Image)
         except Exception as e:
@@ -83,14 +90,18 @@ class FaceRecognizer:
             print(e)
         
         img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2GRAY)
-
+        cv2.imshow("Face", img)
+        cv2.waitKey(0)
+        img = cv2.resize(img, (0, 0), fx=0.5, fy=0.5)
+        cv2.imshow("Face", img)
+        cv2.waitKey(0)
         face_cascade = cv2.CascadeClassifier(self.script_dir + '/haarcascade_frontalface_default.xml')
         if face_cascade.empty():
             print("Error: Failed to load face detection classifier")
             raise Exception("Failed to load face detection classifier")
 
-        faces = face_cascade.detectMultiScale(img, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
-        return [img[y:y+h, x:x+w] for (x, y, w, h) in faces]
+        faces = face_cascade.detectMultiScale(img, scaleFactor=1.1, minNeighbors=5, minSize=(40, 40))
+        return [img[y-10:y+h+10, x-10:x+w+10] for (x, y, w, h) in faces]
 
 if __name__ == '__main__':
     rospy.init_node('face_recognizer')
