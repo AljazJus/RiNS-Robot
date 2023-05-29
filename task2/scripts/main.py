@@ -186,7 +186,9 @@ class Main_task:
             max_index=0
             print("No prison for a criminal found!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! going to green ring")
             self.criminals[max_index][1]="green"
-        
+
+        print("Looking for criminal "+str(max_index))
+        print("Going to the "+self.criminals[max_index][1]+" ring")
         found_criminals=False
         #check the clues and visit thoes cilinders
         for clue in self.clues:
@@ -205,7 +207,7 @@ class Main_task:
                         #new_msg=Bool.data(True)
                         #? look at the cylinder
                         self.cylinder_inspect_srv(True)
-                        self.greet_face("FBI, open up ")
+                        #self.greet_face("FBI, open up ")
                         # recognition of the face
                         face_id=self.face_recognition_srv(True)
                         print("Face id is "+str(face_id.face))

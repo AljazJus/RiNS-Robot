@@ -90,6 +90,7 @@ class face_handle:
             return
         
         pred_faco=self.face_orientation(mark)
+        #pred_faco=self.approche_position((face_x,face_y))
 
         #check if the face is already is empty
         if(self.faces==[]):
@@ -260,7 +261,6 @@ class face_handle:
         This function calculates the position infront of the object
         """
 
-        #todo: calculate the position infront of the object
         ob_x,ob_y=mark
 
         #closest point from wall to mark
@@ -273,10 +273,14 @@ class face_handle:
 
 
         # Calculate the direction vector from center to wall
-        #!check if the object is ouut of the map
         print("----------------check point rad"+str(self.chech_if_point_reacheble((ob_x,ob_y))))
-        if self.chech_if_point_reacheble((ob_x,ob_y))==0:
+        under=self.chech_if_point_reacheble((ob_x,ob_y))
+        if under==0:
             direction = center - wall
+        elif under==1:
+            road_coord = self.find_closest_road(mark)
+            road = np.array([road_coord[0], road_coord[1]])
+            direction = center - road
         else:
             direction =  (center - wall )*-1
             
@@ -284,6 +288,10 @@ class face_handle:
         # Calculate the point that is 0.5 meters away from the wall on the opposite side of the center
         opposite_point = wall + direction/np.linalg.norm(direction)*0.5
         
+        #todo: check if the point is reachable
+        #! if not, calculate the point that is 0.5 meters away from the road on the opposite side of the center
+
+
         #convert np.array to tuple
         opposite_point = tuple(opposite_point)
 
@@ -322,29 +330,120 @@ class face_handle:
         #if x_map < 0 or x_map >= self.cv_map.shape[1] or y_map < 0 or y_map >= self.cv_map.shape[0]:
         #    return False
 
+        # closest_dist = float('inf')
+        # closest_point = None
+        # for radius in range(1, int(max_radius / res) + 1):
+        #     for i in range(-radius, radius + 1):
+        #         for j in range(-radius, radius + 1):
+        #             if i ** 2 + j ** 2 > radius ** 2:
+        #                 continue # skip points outside of circle
+        #             x_curr = x_map + i
+        #             y_curr = y_map + j
+        #             if x_curr >= 0 and x_curr < self.cv_map.shape[1] and y_curr >= 0 and y_curr < self.cv_map.shape[0]:
+        #                 data_val = self.cv_map[y_curr, x_curr]
+        #                 if data_val == 100:
+        #                     # convert map coordinates to world coordinates
+        #                     x_curr = x_curr * res + self.map_transform.position.x
+        #                     y_curr = y_curr * res + self.map_transform.position.y
+
+        #                     # calculate distance from current point to original point
+        #                     dist = math.sqrt((x_curr - mark[0]) ** 2 + (y_curr - mark[1]) ** 2)
+
+        #                     # update closest point if distance is smaller
+        #                     if dist < closest_dist:
+        #                         closest_dist = dist
+        #                         closest_point = (x_curr, y_curr)
+
+
         closest_dist = float('inf')
         closest_point = None
-        for radius in range(1, int(max_radius / res) + 1):
-            for i in range(-radius, radius + 1):
-                for j in range(-radius, radius + 1):
-                    if i ** 2 + j ** 2 > radius ** 2:
-                        continue # skip points outside of circle
-                    x_curr = x_map + i
-                    y_curr = y_map + j
-                    if x_curr >= 0 and x_curr < self.cv_map.shape[1] and y_curr >= 0 and y_curr < self.cv_map.shape[0]:
-                        data_val = self.cv_map[y_curr, x_curr]
-                        if data_val == 100:
-                            # convert map coordinates to world coordinates
-                            x_curr = x_curr * res + self.map_transform.position.x
-                            y_curr = y_curr * res + self.map_transform.position.y
+        for i in range(int(x_map - int(max_radius / res)),int( x_map + int(max_radius / res)) + 1):
+            if i < 0 or i >= self.cv_map.shape[1]:
+                continue
+            data_val = self.cv_map[y_map, i]
+            if data_val != 100:
+                continue
+            # convert map coordinates to world coordinates
+            x_curr = i * res + self.map_transform.position.x
+            y_curr = y_map * res + self.map_transform.position.y
 
-                            # calculate distance from current point to original point
-                            dist = math.sqrt((x_curr - mark[0]) ** 2 + (y_curr - mark[1]) ** 2)
+            # calculate distance from current point to original point
+            dist = math.sqrt((x_curr - mark[0]) ** 2 + (y_curr - mark[1]) ** 2)
 
-                            # update closest point if distance is smaller
-                            if dist < closest_dist:
-                                closest_dist = dist
-                                closest_point = (x_curr, y_curr)
+            # update closest point if distance is smaller
+            if dist < closest_dist:
+                closest_dist = dist
+                closest_point = (x_curr, y_curr)
+
+        for j in range(int(y_map - int(max_radius / res)), int(y_map + int(max_radius / res)) + 1):
+            if j < 0 or j >= self.cv_map.shape[0]:
+                continue
+            data_val = self.cv_map[j, x_map]
+            if data_val != 100:
+                continue
+            # convert map coordinates to world coordinates
+            x_curr = x_map * res + self.map_transform.position.x
+            y_curr = j * res + self.map_transform.position.y
+
+            # calculate distance from current point to original point
+            dist = math.sqrt((x_curr - mark[0]) ** 2 + (y_curr - mark[1]) ** 2)
+
+            # update closest point if distance is smaller
+            if dist < closest_dist:
+                closest_dist = dist
+                closest_point = (x_curr, y_curr)
+                                
+
+        return closest_point
+    
+    def find_closest_road(self, mark, max_radius=0.5):
+        res = self.map_resolution # map resolution
+        
+        # convert world coordinates to map coordinates
+        x_map = int((mark[0] - self.map_transform.position.x) / res)
+        y_map = int((mark[1] - self.map_transform.position.y) / res)
+        
+        # check if point is out of bounds
+        #if x_map < 0 or x_map >= self.cv_map.shape[1] or y_map < 0 or y_map >= self.cv_map.shape[0]:
+        #    return False
+
+        closest_dist = float('inf')
+        closest_point = None
+        for i in range(int(x_map - int(max_radius / res)),int( x_map + int(max_radius / res)) + 1):
+            if i < 0 or i >= self.cv_map.shape[1]:
+                continue
+            data_val = self.cv_map[y_map, i]
+            if data_val != 0:
+                continue
+            # convert map coordinates to world coordinates
+            x_curr = i * res + self.map_transform.position.x
+            y_curr = y_map * res + self.map_transform.position.y
+
+            # calculate distance from current point to original point
+            dist = math.sqrt((x_curr - mark[0]) ** 2 + (y_curr - mark[1]) ** 2)
+
+            # update closest point if distance is smaller
+            if dist < closest_dist:
+                closest_dist = dist
+                closest_point = (x_curr, y_curr)
+
+        for j in range(int(y_map - int(max_radius / res)), int(y_map + int(max_radius / res)) + 1):
+            if j < 0 or j >= self.cv_map.shape[0]:
+                continue
+            data_val = self.cv_map[j, x_map]
+            if data_val != 0:
+                continue
+            # convert map coordinates to world coordinates
+            x_curr = x_map * res + self.map_transform.position.x
+            y_curr = j * res + self.map_transform.position.y
+
+            # calculate distance from current point to original point
+            dist = math.sqrt((x_curr - mark[0]) ** 2 + (y_curr - mark[1]) ** 2)
+
+            # update closest point if distance is smaller
+            if dist < closest_dist:
+                closest_dist = dist
+                closest_point = (x_curr, y_curr)
 
         return closest_point
 
