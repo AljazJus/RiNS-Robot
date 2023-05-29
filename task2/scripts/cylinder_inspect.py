@@ -72,6 +72,7 @@ class cylinder_inspector():
         self.check.joint_names = ["arm_shoulder_pan_joint", "arm_shoulder_lift_joint", "arm_elbow_flex_joint", "arm_wrist_flex_joint"]
         self.check.points = [JointTrajectoryPoint(positions=[0,-0.4,0.4,0.8], time_from_start = rospy.Duration(1))]
         
+        self.curr_rotation = JointTrajectory()
 
         # An object we use for converting images between ROS format and OpenCV format
         self.bridge = CvBridge()
@@ -130,7 +131,10 @@ class cylinder_inspector():
         extend = self.extend.points[0].positions
         retract = self.retract.points[0].positions
         check = self.check.points[0].positions
-
+        
+        self.arm_movement_pub.publish(self.extend)
+        rospy.loginfo('Extend-ed arm!')
+            
         while(self.moves_completed < 2):
             result = rospy.wait_for_message('/turtlebot_arm/arm_controller/state', JointTrajectoryControllerState)
             actual = result.actual.positions
@@ -160,7 +164,7 @@ class cylinder_inspector():
             gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
             gray = cv2.medianBlur(gray, 5)
             
-            circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1, 20, param1=50, param2=20, minRadius=0, maxRadius=0)
+            circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1, 20, param1=80, param2=30, minRadius=0, maxRadius=0)
             if circles is not None:
                 candidates = []
                 circles = np.round(circles[0, :]).astype("int")
@@ -203,9 +207,23 @@ class cylinder_inspector():
                     candidates.append((circle, depth_mean, c))
                     
                 print("Processing is done! found", len(candidates), "candidates for rings")
+
                 if len(candidates) > 0:
                     print("NO CANIDATES FOUND")
+                    self.arm_movement_pub.publish(self.curr_rotation)
                     
+                result = rospy.wait_for_message('/turtlebot_arm/arm_controller/state', JointTrajectoryControllerState)
+                actual = result.actual.positions        
+                self.stop = JointTrajectory()
+                self.stop.joint_names = ["arm_shoulder_pan_joint", "arm_shoulder_lift_joint", "arm_elbow_flex_joint", "arm_wrist_flex_joint"]
+                self.stop.points = [JointTrajectoryPoint(positions=[actual[0], actual[1], actual[2], actual[3]],
+                                                        velocities=[0, 0, 0, 0],
+                                                        accelerations=[0, 0, 0, 0],
+                                                        time_from_start=rospy.Duration(1))]
+                self.arm_movement_pub.publish(self.stop)
+                rospy.sleep(1)
+                
+
                 for c in candidates:
                     circle = c[0]
                     depth_mean = c[1]
@@ -214,22 +232,13 @@ class cylinder_inspector():
                     # the center of the circle
                     x, y = circle[:2]
 
-
                     
                     color_name = self.nearest_neighbour(c)
                     
-                    #cv2.imshow("Detected circles", cv2.circle(cv_image, (int(x), int(y)), int(r), (0, 255, 0), 2))
-                    #cv2.waitKey(0)
-                    #cv2.destroyAllWindows() 
+                    cv2.imshow("Detected circles", cv2.circle(cv_image, (int(x), int(y)), int(r), (0, 255, 0), 2))
+                    cv2.waitKey(0)
+                    cv2.destroyAllWindows()
                     
-                    # self.stop = JointTrajectory()
-                    # self.stop.joint_names = ["arm_shoulder_pan_joint", "arm_shoulder_lift_joint", "arm_elbow_flex_joint", "arm_wrist_flex_joint"]
-                    # self.stop.points = [JointTrajectoryPoint(positions=[self.actual[0],self.actual[1],self.actual[2],self.actual[3]],
-                    #                                             time_from_start = rospy.Duration(1))]
-                    
-                    # #if abs(self.actual[0] - self.stop.points[0].positions[0]) < 0.05 and abs(self.actual[1] - self.stop.points[0].positions[1]) < 0.05 and abs(self.actual[2] - self.stop.points[0].positions[2]) < 0.05 and abs(self.actual[3] - self.stop.points[0].positions[3]) < 0.5:
-                    # self.arm_movement_pub.publish(self.stop)
-                    # rospy.sleep(2)
                     self.arm_movement_pub.publish(self.check)
                     self.get_pose((x, y), depth_mean, ColorRGBA(c[0], c[1], c[2], 1), color_name)
                     self.moves_completed += 1
@@ -240,24 +249,19 @@ class cylinder_inspector():
 
             if abs(actual[0] - extend[0]) < 0.05 and abs(actual[1] - extend[1]) < 0.05 and abs(actual[2] - extend[2]) < 0.05 and abs(actual[3] - extend[3]) < 0.5:
                 self.arm_movement_pub.publish(self.right)
+                self.curr_rotation = self.right
                 rospy.loginfo('Right-ed arm!')
                 print("Now should turn left")
             elif abs(actual[0] - right[0]) < 0.05 and abs(actual[1] - right[1]) < 0.05 and abs(actual[2] - right[2]) < 0.05 and abs(actual[3] - right[3]) < 0.5:
                 self.arm_movement_pub.publish(self.left)
+                self.curr_rotation = self.left
                 rospy.loginfo('Left-ed arm!')
             elif abs(actual[0] - left[0]) < 0.05 and abs(actual[1] - left[1]) < 0.05 and abs(actual[2] - left[2]) < 0.05 and abs(actual[3] - left[3]) < 0.5:
                 self.arm_movement_pub.publish(self.extend)
+                self.curr_rotation = self.extend
                 rospy.loginfo('Extend-ed arm!')
                 rospy.sleep(1)
                 self.turns_completed += 1
-            elif abs(actual[0] - retract[0]) < 0.05 and abs(actual[1] - retract[1]) < 0.05 and abs(actual[2] - retract[2]) < 0.05 and abs(actual[3] - retract[3]) < 0.5:
-                self.arm_movement_pub.publish(self.extend)
-                rospy.loginfo('Retract-ed arm!')
-                rospy.sleep(1)
-            elif abs(actual[0] - check[0]) < 0.05 and abs(actual[1] - check[1]) < 0.05 and abs(actual[2] - check[2]) < 0.05 and abs(actual[3] - check[3]) < 0.5:
-                self.arm_movement_pub.publish(self.extend)
-                rospy.loginfo('Extend-ed arm!')
-                rospy.sleep(1)
                 
         else:
             self.arm_movement_pub.publish(self.retract)
@@ -392,7 +396,7 @@ class cylinder_inspector():
         
         
         twist = Twist()
-        twist.linear.x = dist/2
+        twist.linear.x = dist/2.3
         twist.linear.y = 0
         twist.linear.z = 0
         twist.angular.x = 0
